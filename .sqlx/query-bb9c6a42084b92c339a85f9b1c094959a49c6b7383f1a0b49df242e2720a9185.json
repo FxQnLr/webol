@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, mac, broadcast_addr\n            FROM devices\n            WHERE id = $1;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "mac",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "broadcast_addr",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "bb9c6a42084b92c339a85f9b1c094959a49c6b7383f1a0b49df242e2720a9185"
+}
