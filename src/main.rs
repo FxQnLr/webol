@@ -5,11 +5,12 @@ use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
 use crate::routes::start::start;
 
 mod auth;
+mod config;
 mod routes;
+mod wol;
 
 #[tokio::main]
 async fn main() {
-
     unsafe { local_offset::set_soundness(local_offset::Soundness::Unsound); }
     let time_format =
         time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
