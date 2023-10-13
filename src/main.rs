@@ -51,7 +51,7 @@ async fn main() {
         .route("/device", post(post_device))
         .with_state(shared_state);
 
-    // run it with hyper on localhost:3000
+    // TODO: Add to config
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(app.into_make_service())
         .await

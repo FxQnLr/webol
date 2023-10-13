@@ -1,0 +1,16 @@
+FROM rust:1.73 as builder
+WORKDIR /usr/src/webol
+COPY . .
+# RUN rustup target add armv7-unknown-linux-gnueabihf
+# RUN apt update && apt install gcc-arm-linux-gnueabihf -y
+# RUN CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc cargo install --path . --target armv7-unknown-linux-gnueabihf
+RUN cargo install --path . 
+
+# FROM --platform=arm64 debian:bullseye-slim
+FROM debian:trixie-slim
+# RUN apt-get update && apt-get install -y libc6 && rm -rf /var/lib/apt/lists/*
+WORKDIR /usr/local/webol
+COPY --from=builder /usr/local/cargo/bin/webol /usr/local/bin/webol
+
+EXPOSE 7229
+CMD ["webol"]
