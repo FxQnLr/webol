@@ -1,16 +1,18 @@
-FROM rust:1.73 as builder
-WORKDIR /usr/src/webol
-COPY . .
-# RUN rustup target add armv7-unknown-linux-gnueabihf
-# RUN apt update && apt install gcc-arm-linux-gnueabihf -y
-# RUN CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc cargo install --path . --target armv7-unknown-linux-gnueabihf
-RUN cargo install --path . 
+FROM debian:bookworm AS deb_extractor
+RUN cd /tmp && \
+    apt-get update && apt-get download \
+        libc6 && \
+    mkdir /dpkg && \
+    for deb in *.deb; do dpkg --extract $deb /dpkg || exit 10; done
 
-# FROM --platform=arm64 debian:bullseye-slim
-FROM debian:trixie-slim
-# RUN apt-get update && apt-get install -y libc6 && rm -rf /var/lib/apt/lists/*
-WORKDIR /usr/local/webol
-COPY --from=builder /usr/local/cargo/bin/webol /usr/local/bin/webol
+FROM rust:1.73 as builder
+WORKDIR /app
+COPY . .
+RUN cargo build --release
+
+FROM gcr.io/distroless/cc
+COPY --from=builder /app/target/release/webol /
+COPY --from=deb_extractor /dpkg /
 
 EXPOSE 7229
-CMD ["webol"]
+ENTRYPOINT ["./webol"]

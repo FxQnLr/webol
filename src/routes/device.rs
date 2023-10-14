@@ -4,11 +4,13 @@ use axum::headers::HeaderMap;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tracing::info;
 use crate::auth::auth;
 use crate::db::Device;
 use crate::error::WebolError;
 
 pub async fn get_device(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<GetDevicePayload>) -> Result<Json<Value>, WebolError> {
+    info!("GET request");
     let secret = headers.get("authorization");
     if auth(secret).map_err(WebolError::Auth)? {
         let device = sqlx::query_as!(
@@ -33,6 +35,7 @@ pub struct GetDevicePayload {
 }
 
 pub async fn put_device(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<PutDevicePayload>) -> Result<Json<Value>, WebolError> {
+    info!("PUT request");
     let secret = headers.get("authorization");
     if auth(secret).map_err(WebolError::Auth)? {
         sqlx::query!(
@@ -64,6 +67,7 @@ pub struct PutDeviceResponse {
 }
 
 pub async fn post_device(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<PostDevicePayload>) -> Result<Json<Value>, WebolError> {
+    info!("POST request");
     let secret = headers.get("authorization");
     if auth(secret).map_err(WebolError::Auth)? {
         let device = sqlx::query_as!(

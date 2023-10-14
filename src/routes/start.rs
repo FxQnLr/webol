@@ -28,7 +28,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
 
         let bind_addr = SETTINGS
             .get_string("bindaddr")
-            .map_err(|err| WebolError::Server(Box::new(err)))?;
+            .unwrap_or("0.0.0.0:1111".to_string());
 
         let _ = send_packet(
             &bind_addr.parse().map_err(|err| WebolError::Server(Box::new(err)))?,
