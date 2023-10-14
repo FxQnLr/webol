@@ -2,9 +2,9 @@ name: build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "test" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "test" ]
   workflow_dispatch:
 
 env:
@@ -12,7 +12,6 @@ env:
   RUSTC_WRAPPER: "sccache"
   SQLX_OFFLINE: "true"
   CARGO_TERM_COLOR: always
-  CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
 
 jobs:
   build:
@@ -21,23 +20,25 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.3
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: armv7-unknown-linux-gnueabihf
           components: rustfmt, clippy
           override: true
 
-      - name: Install arm linker
-        run: sudo apt update && sudo apt install gcc-arm-linux-gnueabihf -y
-
-      - name: Cargo build
+      - name: Run cargo check
         uses: actions-rs/cargo@v1
         with:
-          command: build
-          args: --release --target armv7-unknown-linux-gnueabihf
+          command: check
 
+      - name: Run Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Login to DockerHub
@@ -50,8 +51,9 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v3
         with:
-          file: Dockerfile
+          file: Dockerfile.build
           push: true
+          platforms: linux/amd64,linux/arm/v7
           tags: |
-            ghcr.io/fxqnlr/webol:dev-latest
-            ghcr.io/fxqnlr/webol:dev-${{ github.run_number }}
+            ghcr.io/fxqnlr/webol:test-latest
+            ghcr.io/fxqnlr/webol:test-${{ github.run_number }}
