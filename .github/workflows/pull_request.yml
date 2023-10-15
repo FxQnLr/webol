@@ -1,0 +1,41 @@
+name: check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+  SQLX_OFFLINE: "true"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.3
+
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+          override: true
+
+      - name: run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
+      - name: run clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+
+      - name: run test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
