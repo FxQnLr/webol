@@ -12,6 +12,7 @@ use crate::db::Device;
 use crate::error::WebolError;
 
 pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<StartPayload>) -> Result<Json<Value>, WebolError> {
+    info!("POST request");
     let secret = headers.get("authorization");
     if auth(secret).map_err(WebolError::Auth)? {
         let device = sqlx::query_as!(
@@ -28,7 +29,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
 
         let bind_addr = SETTINGS
             .get_string("bindaddr")
-            .map_err(|err| WebolError::Server(Box::new(err)))?;
+            .unwrap_or("0.0.0.0:1111".to_string());
 
         let _ = send_packet(
             &bind_addr.parse().map_err(|err| WebolError::Server(Box::new(err)))?,

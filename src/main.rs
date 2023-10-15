@@ -7,6 +7,7 @@ use sqlx::postgres::PgPoolOptions;
 use time::util::local_offset;
 use tracing::{debug, info, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
+use crate::config::SETTINGS;
 use crate::routes::device::{get_device, post_device, put_device};
 use crate::routes::start::start;
 
@@ -37,13 +38,12 @@ async fn main() {
 
     let version = env!("CARGO_PKG_VERSION");
 
-    info!("starting webol v{}", version);
+    info!("start webol v{}", version);
 
     let db = init_db_pool().await;
 
     let shared_state = Arc::new(AppState { db });
 
-    // build our application with a single route
     let app = Router::new()
         .route("/start", post(start))
         .route("/device", get(get_device))
@@ -51,8 +51,9 @@ async fn main() {
         .route("/device", post(post_device))
         .with_state(shared_state);
 
-    // run it with hyper on localhost:3000
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
+    let addr = SETTINGS.get_string("serveraddr").unwrap_or("0.0.0.0:7229".to_string());
+    info!("start server on {}", addr);
+    axum::Server::bind(&addr.parse().unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();
@@ -63,9 +64,13 @@ pub struct AppState {
 }
 
 async fn init_db_pool() -> PgPool {
+    #[cfg(not(debug_assertions))]
+    let db_url = SETTINGS.get_string("database.url").unwrap();
+
+    #[cfg(debug_assertions)]
     let db_url = env::var("DATABASE_URL").unwrap();
 
-    debug!("attempting to connect dbPool to '{}'", db_url);
+    debug!("attempt to connect dbPool to '{}'", db_url);
 
     let pool = PgPoolOptions::new()
         .max_connections(5)

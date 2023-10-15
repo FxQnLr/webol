@@ -3,6 +3,7 @@ version: '3.1'
 services:
   db:
     image: postgres
+    container_name: webol_dev_postgres
     restart: no
     environment:
       POSTGRES_PASSWORD: postgres

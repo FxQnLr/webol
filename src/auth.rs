@@ -1,21 +1,26 @@
 use std::error::Error;
 use axum::headers::HeaderValue;
 use axum::http::StatusCode;
-use tracing::error;
+use tracing::{debug, error, trace};
 use crate::auth::AuthError::{MissingSecret, ServerError, WrongSecret};
 use crate::config::SETTINGS;
 
 pub fn auth(secret: Option<&HeaderValue>) -> Result<bool, AuthError> {
+    debug!("auth request with secret {:?}", secret);
     if let Some(value) = secret {
+        trace!("value exists");
         let key = SETTINGS
             .get_string("apikey")
             .map_err(|err| ServerError(Box::new(err)))?;
         if value.to_str().map_err(|err| ServerError(Box::new(err)))? == key.as_str() {
+            debug!("successful auth");
             Ok(true)
         } else {
+            debug!("unsuccessful auth (wrong secret)");
             Err(WrongSecret)
         }
     } else {
+        debug!("unsuccessful auth (no secret)");
         Err(MissingSecret)
     }
 }
