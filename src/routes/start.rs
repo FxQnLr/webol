@@ -12,6 +12,7 @@ use crate::db::Device;
 use crate::error::WebolError;
 
 pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<StartPayload>) -> Result<Json<Value>, WebolError> {
+    info!("POST request");
     let secret = headers.get("authorization");
     if auth(secret).map_err(WebolError::Auth)? {
         let device = sqlx::query_as!(
