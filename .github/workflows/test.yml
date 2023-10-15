@@ -51,9 +51,8 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v3
         with:
-          file: Dockerfile.build
           push: true
-          platforms: linux/amd64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/fxqnlr/webol:test-latest
-            ghcr.io/fxqnlr/webol:test-${{ github.run_number }}
+            ghcr.io/fxqnlr/webol:latest
+            ghcr.io/fxqnlr/webol:${{ github.run_number }}
