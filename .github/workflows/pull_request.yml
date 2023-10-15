@@ -1,4 +1,4 @@
-name: build
+name: check
 
 on:
   pull_request:
@@ -25,12 +25,17 @@ jobs:
           components: rustfmt, clippy
           override: true
 
-      - name: Run cargo check
+      - name: run cargo check
         uses: actions-rs/cargo@v1
         with:
           command: check
 
-      - name: Run Clippy
+      - name: run clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
+
+      - name: run test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
