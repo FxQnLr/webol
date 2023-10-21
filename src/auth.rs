@@ -25,6 +25,7 @@ pub fn auth(secret: Option<&HeaderValue>) -> Result<bool, AuthError> {
     }
 }
 
+#[derive(Debug)]
 pub enum AuthError {
     WrongSecret,
     MissingSecret,

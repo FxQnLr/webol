@@ -1,5 +1,5 @@
 -- Add migration script here
-CREATE TABLE "devices"
+CREATE TABLE IF NOT EXISTS "devices"
 (
     "id"                TEXT PRIMARY KEY NOT NULL,
     "mac"               TEXT NOT NULL,
