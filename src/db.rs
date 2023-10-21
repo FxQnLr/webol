@@ -1,8 +1,12 @@
+#[cfg(debug_assertions)]
 use std::env;
 
 use serde::Serialize;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tracing::{debug, info};
+
+#[cfg(not(debug_assertions))]
+use crate::config::SETTINGS;
 
 #[derive(Serialize)]
 pub struct Device {

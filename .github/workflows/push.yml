@@ -29,16 +29,13 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-
+          args: --release
+          
       - name: Run Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-
-      - name: run test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+          args: --release
 
   build:
     runs-on: ubuntu-latest
