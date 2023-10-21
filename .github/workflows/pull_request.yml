@@ -51,9 +51,11 @@ jobs:
       - name: run cargo check
         uses: actions-rs/cargo@v1
         with:
-          command: check --release
+          command: check
+          args: --release
 
       - name: run clippy
         uses: actions-rs/cargo@v1
         with:
-          command: clippy --release
+          command: clippy
+          args: --release
