@@ -7,7 +7,7 @@ use time::util::local_offset;
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
 use crate::config::SETTINGS;
-use crate::db::{init_db_pool, setup_db};
+use crate::db::init_db_pool;
 use crate::routes::device::{get_device, post_device, put_device};
 use crate::routes::start::start;
 
@@ -41,7 +41,7 @@ async fn main() {
     info!("start webol v{}", version);
 
     let db = init_db_pool().await;
-    setup_db(&db).await.unwrap();
+    sqlx::migrate!().run(&db).await.unwrap();
 
     let shared_state = Arc::new(AppState { db });
 
