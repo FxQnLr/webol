@@ -3,11 +3,11 @@ use std::sync::Arc;
 use axum::{Router, routing::post};
 use axum::routing::{get, put};
 use sqlx::PgPool;
-use sqlx::postgres::PgPoolOptions;
 use time::util::local_offset;
-use tracing::{debug, info, level_filters::LevelFilter};
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
 use crate::config::SETTINGS;
+use crate::db::{init_db_pool, setup_db};
 use crate::routes::device::{get_device, post_device, put_device};
 use crate::routes::start::start;
 
@@ -41,6 +41,7 @@ async fn main() {
     info!("start webol v{}", version);
 
     let db = init_db_pool().await;
+    setup_db(&db).await.unwrap();
 
     let shared_state = Arc::new(AppState { db });
 
@@ -61,24 +62,4 @@ async fn main() {
 
 pub struct AppState {
     db: PgPool
-}
-
-async fn init_db_pool() -> PgPool {
-    #[cfg(not(debug_assertions))]
-    let db_url = SETTINGS.get_string("database.url").unwrap();
-
-    #[cfg(debug_assertions)]
-    let db_url = env::var("DATABASE_URL").unwrap();
-
-    debug!("attempt to connect dbPool to '{}'", db_url);
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&db_url)
-        .await
-        .unwrap();
-
-    info!("dbPool successfully connected to '{}'", db_url);
-
-    pool
 }

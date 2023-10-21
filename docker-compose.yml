@@ -6,7 +6,8 @@ services:
     container_name: webol_dev_postgres
     restart: no
     environment:
-      POSTGRES_PASSWORD: postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=webol
 
     ports:
       - "5432:5432"

@@ -6,6 +6,7 @@ use serde_json::json;
 use tracing::error;
 use crate::auth::AuthError;
 
+#[derive(Debug)]
 pub enum WebolError {
     Auth(AuthError),
     Generic,
