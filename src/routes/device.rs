@@ -21,7 +21,7 @@ pub async fn get_device(State(state): State<Arc<crate::AppState>>, headers: Head
             WHERE id = $1;
             "#,
             payload.id
-        ).fetch_one(&state.db).await.map_err(|err| WebolError::Server(Box::new(err)))?;
+        ).fetch_one(&state.db).await.map_err(WebolError::DB)?;
 
         Ok(Json(json!(device)))
     } else {
@@ -46,7 +46,7 @@ pub async fn put_device(State(state): State<Arc<crate::AppState>>, headers: Head
             payload.id,
             payload.mac,
             payload.broadcast_addr
-        ).execute(&state.db).await.map_err(|err| WebolError::Server(Box::new(err)))?;
+        ).execute(&state.db).await.map_err(WebolError::DB)?;
 
         Ok(Json(json!(PutDeviceResponse { success: true })))
     } else {
@@ -80,7 +80,7 @@ pub async fn post_device(State(state): State<Arc<crate::AppState>>, headers: Hea
             payload.mac,
             payload.broadcast_addr,
             payload.id
-        ).fetch_one(&state.db).await.map_err(|err| WebolError::Server(Box::new(err)))?;
+        ).fetch_one(&state.db).await.map_err(WebolError::DB)?;
 
         Ok(Json(json!(device)))
     } else {

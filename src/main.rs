@@ -4,12 +4,14 @@ use axum::{Router, routing::post};
 use axum::routing::{get, put};
 use sqlx::PgPool;
 use time::util::local_offset;
+use tokio::sync::mpsc::{self, Sender};
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
 use crate::config::SETTINGS;
 use crate::db::init_db_pool;
 use crate::routes::device::{get_device, post_device, put_device};
 use crate::routes::start::start;
+use crate::services::ping::ws_ping;
 
 mod auth;
 mod config;
@@ -17,6 +19,7 @@ mod routes;
 mod wol;
 mod db;
 mod error;
+mod services;
 
 #[tokio::main]
 async fn main() {
@@ -43,13 +46,23 @@ async fn main() {
     let db = init_db_pool().await;
     sqlx::migrate!().run(&db).await.unwrap();
 
-    let shared_state = Arc::new(AppState { db });
+    let (tx, mut rx) = mpsc::channel(32);
+    
+    // FIXME: once_cell? or just static mutable
+    tokio::spawn( async move {
+        while let Some(message) = rx.recv().await {
+            println!("GOT = {}", message);
+        }
+    });
+
+    let shared_state = Arc::new(AppState { db, ping_send: tx });
 
     let app = Router::new()
         .route("/start", post(start))
         .route("/device", get(get_device))
         .route("/device", put(put_device))
         .route("/device", post(post_device))
+        .route("/status", get(ws_ping))
         .with_state(shared_state);
 
     let addr = SETTINGS.get_string("serveraddr").unwrap_or("0.0.0.0:7229".to_string());
@@ -61,5 +74,7 @@ async fn main() {
 }
 
 pub struct AppState {
-    db: PgPool
+    db: PgPool,
+    ping_send: Sender<String>,
+    // ping_receive: Receiver<String>
 }

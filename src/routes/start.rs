@@ -14,7 +14,8 @@ use crate::error::WebolError;
 pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<StartPayload>) -> Result<Json<Value>, WebolError> {
     info!("POST request");
     let secret = headers.get("authorization");
-    if auth(secret).map_err(WebolError::Auth)? {
+    let authorized = auth(secret).map_err(WebolError::Auth)?;
+    if authorized {
         let device = sqlx::query_as!(
             Device,
             r#"
@@ -23,7 +24,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
             WHERE id = $1;
             "#,
             payload.id
-        ).fetch_one(&state.db).await.map_err(|err| WebolError::Server(Box::new(err)))?;
+        ).fetch_one(&state.db).await.map_err(WebolError::DB)?;
 
         info!("starting {}", device.id);
 
@@ -32,10 +33,14 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
             .unwrap_or("0.0.0.0:1111".to_string());
 
         let _ = send_packet(
-            &bind_addr.parse().map_err(|err| WebolError::Server(Box::new(err)))?,
-            &device.broadcast_addr.parse().map_err(|err| WebolError::Server(Box::new(err)))?,
-            create_buffer(&device.mac).map_err(|err| WebolError::Server(Box::new(err)))?
-        ).map_err(|err| WebolError::Server(Box::new(err)));
+            &bind_addr.parse().map_err(WebolError::IpParse)?,
+            &device.broadcast_addr.parse().map_err(WebolError::IpParse)?,
+            create_buffer(&device.mac)?
+        )?;
+
+        if payload.ping.is_some_and(|ping| ping) {
+            tokio::spawn(async move {crate::services::ping::spawn(state.ping_send.clone()).await});
+        }
         Ok(Json(json!(StartResponse { id: device.id, boot: true })))
     } else {
         Err(WebolError::Generic)
@@ -45,7 +50,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
 #[derive(Deserialize)]
 pub struct StartPayload {
     id: String,
-    _test: Option<bool>,
+    ping: Option<bool>,
 }
 
 #[derive(Serialize)]
