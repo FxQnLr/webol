@@ -1,8 +1,9 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use axum::{extract::{WebSocketUpgrade, ws::WebSocket, State}, response::Response};
-use tokio::sync::mpsc::Sender;
-use tracing::{debug, error};
+use tokio::sync::broadcast::{Sender};
+use tracing::{debug, error, trace};
 
 use crate::{error::WebolError, AppState};
 
@@ -12,7 +13,7 @@ pub async fn spawn(tx: Sender<String>) -> Result<(), WebolError> {
     let mut cont = true;
     while cont {
         let ping = surge_ping::ping(
-            "192.168.178.28".parse().map_err(WebolError::IpParse)?,
+            "127.0.0.1".parse().map_err(WebolError::IpParse)?,
             &payload
         ).await;
 
@@ -30,23 +31,28 @@ pub async fn spawn(tx: Sender<String>) -> Result<(), WebolError> {
             debug!("Ping took {:?}", duration);
             cont = false;
             // FIXME: remove unwrap
-            tx.send("Got ping".to_string()).await.unwrap();
+            tx.send("Got ping".to_string()).unwrap();
         };
     }
 
     Ok(())
 }
 
-pub async fn ws_ping(ws: WebSocketUpgrade, State(_state): State<Arc<AppState>>) -> Response {
-    ws.on_upgrade(handle_socket)
+// TODO: Status to routes, websocket here
+pub async fn ws_ping(State(state): State<Arc<AppState>>, ws: WebSocketUpgrade) -> Response {
+    ws.on_upgrade(move |socket| handle_socket(socket, state.ping_send.clone()))
 }
 
 // FIXME: Handle commands through enum
-async fn handle_socket(mut socket: WebSocket) {
+async fn handle_socket(mut socket: WebSocket, tx: Sender<String>) {
     // TODO: Understand Cow
-
-    // match socket.send(axum::extract::ws::Message::Close(Some(CloseFrame { code: 4000, reason: Cow::Owned("started".to_owned()) }))).await.map_err(WebolError::Axum) {
-    match socket.send(axum::extract::ws::Message::Text("started".to_string())).await.map_err(WebolError::Axum) {
+    while let message = tx.subscribe().recv().await.unwrap() {
+        trace!("GOT = {}", message);
+        if &message == "Got ping" {
+            break;
+        }
+    };
+    match socket.send(axum::extract::ws::Message::Close(Some(axum::extract::ws::CloseFrame { code: 4000, reason: Cow::Owned("started".to_owned()) }))).await.map_err(WebolError::Axum) {
         Ok(..) => (),
         Err(err) => { error!("Server Error: {:?}", err) }
     };

@@ -4,7 +4,7 @@ use axum::{Router, routing::post};
 use axum::routing::{get, put};
 use sqlx::PgPool;
 use time::util::local_offset;
-use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::broadcast::{channel, Sender};
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
 use crate::config::SETTINGS;
@@ -46,15 +46,8 @@ async fn main() {
     let db = init_db_pool().await;
     sqlx::migrate!().run(&db).await.unwrap();
 
-    let (tx, mut rx) = mpsc::channel(32);
+    let (tx, _) = channel(32);
     
-    // FIXME: once_cell? or just static mutable
-    tokio::spawn( async move {
-        while let Some(message) = rx.recv().await {
-            println!("GOT = {}", message);
-        }
-    });
-
     let shared_state = Arc::new(AppState { db, ping_send: tx });
 
     let app = Router::new()
@@ -76,5 +69,4 @@ async fn main() {
 pub struct AppState {
     db: PgPool,
     ping_send: Sender<String>,
-    // ping_receive: Receiver<String>
 }

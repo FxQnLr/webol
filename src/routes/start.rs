@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use axum::extract::State;
 use serde_json::{json, Value};
-use tracing::info;
+use tracing::{debug, info};
 use crate::auth::auth;
 use crate::config::SETTINGS;
 use crate::wol::{create_buffer, send_packet};
@@ -39,8 +39,12 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
         )?;
 
         if payload.ping.is_some_and(|ping| ping) {
-            tokio::spawn(async move {crate::services::ping::spawn(state.ping_send.clone()).await});
-        }
+            debug!("ping true");
+            tokio::spawn(async move {
+                debug!("Init ping service");
+                crate::services::ping::spawn(state.ping_send.clone()).await
+            });
+        };
         Ok(Json(json!(StartResponse { id: device.id, boot: true })))
     } else {
         Err(WebolError::Generic)
