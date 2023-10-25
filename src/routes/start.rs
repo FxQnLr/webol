@@ -4,15 +4,18 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use axum::extract::State;
 use serde_json::{json, Value};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
+use uuid::Uuid;
 use crate::auth::auth;
 use crate::config::SETTINGS;
 use crate::wol::{create_buffer, send_packet};
 use crate::db::Device;
 use crate::error::WebolError;
 
+#[axum_macros::debug_handler]
 pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<StartPayload>) -> Result<Json<Value>, WebolError> {
     info!("POST request");
+    warn!("{:?}", state.ping_map);
     let secret = headers.get("authorization");
     let authorized = auth(secret).map_err(WebolError::Auth)?;
     if authorized {
@@ -38,14 +41,20 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
             create_buffer(&device.mac)?
         )?;
 
-        if payload.ping.is_some_and(|ping| ping) {
-            debug!("ping true");
-            tokio::spawn(async move {
+        let uuid = if payload.ping.is_some_and(|ping| ping) {
+            let uuid_gen = Uuid::new_v4().to_string();
+            let uuid_genc = uuid_gen.clone();
+            tokio::spawn(async move{
                 debug!("Init ping service");
-                crate::services::ping::spawn(state.ping_send.clone()).await
+                state.ping_map.lock().await.insert(uuid_gen, ("192.168.178.94".to_string(), false));
+
+                warn!("{:?}", state.ping_map);
+
+                crate::services::ping::spawn(state.ping_send.clone(), "192.168.178.94".to_string()).await;
             });
-        };
-        Ok(Json(json!(StartResponse { id: device.id, boot: true })))
+            Some(uuid_genc)
+        } else { None };
+        Ok(Json(json!(StartResponse { id: device.id, boot: true, uuid })))
     } else {
         Err(WebolError::Generic)
     }
@@ -61,4 +70,5 @@ pub struct StartPayload {
 struct StartResponse {
     id: String,
     boot: bool,
+    uuid: Option<String>,
 }
