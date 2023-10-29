@@ -6,12 +6,13 @@ use axum::extract::ws::{CloseFrame, Message};
 use dashmap::DashMap;
 use tokio::sync::broadcast::{Sender};
 use tracing::{debug, trace, warn};
+use crate::AppState;
 
 use crate::error::WebolError;
 
-pub type PingMap = Arc<DashMap<String, (String, bool)>>;
+pub type PingMap = DashMap<String, (String, bool)>;
 
-pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping_map: PingMap) -> Result<(), WebolError> {
+pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping_map: &PingMap) -> Result<(), WebolError> {
     let payload = [0; 8];
 
     // TODO: Better while
@@ -31,14 +32,14 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping
             let (_, duration) = ping.unwrap();
             debug!("Ping took {:?}", duration);
             cont = false;
-            handle_broadcast_send(&tx, ip.clone(), ping_map.clone(), uuid.clone()).await;
+            handle_broadcast_send(&tx, ip.clone(), &ping_map, uuid.clone()).await;
         };
     }
 
     Ok(())
 }
 
-async fn handle_broadcast_send(tx: &Sender<BroadcastCommands>, ip: String, ping_map: PingMap, uuid: String) {
+async fn handle_broadcast_send(tx: &Sender<BroadcastCommands>, ip: String, ping_map: &PingMap, uuid: String) {
     debug!("sending pingsuccess message");
     ping_map.insert(uuid.clone(), (ip.clone(), true));
     let _ = tx.send(BroadcastCommands::PingSuccess(ip));
@@ -52,8 +53,8 @@ pub enum BroadcastCommands {
     PingSuccess(String)
 }
 
-pub async fn status_websocket(mut socket: WebSocket, tx: Sender<BroadcastCommands>, ping_map: PingMap) {
-    warn!("{:?}", ping_map);
+pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
+    warn!("{:?}", state.ping_map);
 
     trace!("wait for ws message (uuid)");
     let msg = socket.recv().await;
@@ -62,13 +63,14 @@ pub async fn status_websocket(mut socket: WebSocket, tx: Sender<BroadcastCommand
     trace!("Search for uuid: {:?}", uuid);
 
     // TODO: Handle Error
-    let device = ping_map.get(&uuid).unwrap().to_owned();
+    let device = state.ping_map.get(&uuid).unwrap().to_owned();
 
     trace!("got device: {:?}", device);
 
     match device.1 {
         true => {
             debug!("already started");
+            // TODO: What's better?
             // socket.send(Message::Text(format!("start_{}", uuid))).await.unwrap();
             // socket.close().await.unwrap();
             socket.send(Message::Close(Some(CloseFrame { code: 4001, reason: Cow::from(format!("start_{}", uuid)) }))).await.unwrap();
@@ -77,7 +79,7 @@ pub async fn status_websocket(mut socket: WebSocket, tx: Sender<BroadcastCommand
             let ip = device.0.to_owned();
             loop{
                 trace!("wait for tx message");
-                let message = tx.subscribe().recv().await.unwrap();
+                let message = state.ping_send.subscribe().recv().await.unwrap();
                 trace!("GOT = {:?}", message);
                 // if let BroadcastCommands::PingSuccess(msg_ip) = message {
                 //     if msg_ip == ip {
@@ -95,7 +97,7 @@ pub async fn status_websocket(mut socket: WebSocket, tx: Sender<BroadcastCommand
             socket.send(Message::Close(Some(CloseFrame { code: 4000, reason: Cow::from(format!("start_{}", uuid)) }))).await.unwrap();
             // socket.send(Message::Text(format!("start_{}", uuid))).await.unwrap();
             // socket.close().await.unwrap();
-            warn!("{:?}", ping_map);
+            warn!("{:?}", state.ping_map);
         }
     }
 }

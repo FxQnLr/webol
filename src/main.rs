@@ -52,7 +52,7 @@ async fn main() {
 
     let ping_map: DashMap<String, (String, bool)> = DashMap::new();
     
-    let shared_state = Arc::new(AppState { db, ping_send: tx, ping_map: Arc::new(ping_map) });
+    let shared_state = Arc::new(AppState { db, ping_send: tx, ping_map });
 
     let app = Router::new()
         .route("/start", post(start))

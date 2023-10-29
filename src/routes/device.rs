@@ -16,7 +16,7 @@ pub async fn get_device(State(state): State<Arc<crate::AppState>>, headers: Head
         let device = sqlx::query_as!(
             Device,
             r#"
-            SELECT id, mac, broadcast_addr
+            SELECT id, mac, broadcast_addr, ip
             FROM devices
             WHERE id = $1;
             "#,
@@ -40,12 +40,13 @@ pub async fn put_device(State(state): State<Arc<crate::AppState>>, headers: Head
     if auth(secret).map_err(WebolError::Auth)? {
         sqlx::query!(
             r#"
-            INSERT INTO devices (id, mac, broadcast_addr)
-            VALUES ($1, $2, $3);
+            INSERT INTO devices (id, mac, broadcast_addr, ip)
+            VALUES ($1, $2, $3, $4);
             "#,
             payload.id,
             payload.mac,
-            payload.broadcast_addr
+            payload.broadcast_addr,
+            payload.ip
         ).execute(&state.db).await.map_err(WebolError::DB)?;
 
         Ok(Json(json!(PutDeviceResponse { success: true })))
@@ -59,6 +60,7 @@ pub struct PutDevicePayload {
     id: String,
     mac: String,
     broadcast_addr: String,
+    ip: String
 }
 
 #[derive(Serialize)]
@@ -74,11 +76,12 @@ pub async fn post_device(State(state): State<Arc<crate::AppState>>, headers: Hea
             Device,
             r#"
             UPDATE devices
-            SET mac = $1, broadcast_addr = $2 WHERE id = $3
-            RETURNING id, mac, broadcast_addr;
+            SET mac = $1, broadcast_addr = $2, ip = $3 WHERE id = $4
+            RETURNING id, mac, broadcast_addr, ip;
             "#,
             payload.mac,
             payload.broadcast_addr,
+            payload.ip,
             payload.id
         ).fetch_one(&state.db).await.map_err(WebolError::DB)?;
 
@@ -93,4 +96,5 @@ pub struct PostDevicePayload {
     id: String,
     mac: String,
     broadcast_addr: String,
+    ip: String,
 }

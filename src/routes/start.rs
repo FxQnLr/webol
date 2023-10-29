@@ -22,7 +22,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
         let device = sqlx::query_as!(
             Device,
             r#"
-            SELECT id, mac, broadcast_addr
+            SELECT id, mac, broadcast_addr, ip
             FROM devices
             WHERE id = $1;
             "#,
@@ -44,16 +44,15 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
         let uuid = if payload.ping.is_some_and(|ping| ping) {
             let uuid_gen = Uuid::new_v4().to_string();
             let uuid_genc = uuid_gen.clone();
-            let uuid_gencc = uuid_gen.clone();
-            tokio::spawn(async move{
+            tokio::spawn(async move {
                 debug!("Init ping service");
-                state.ping_map.insert(uuid_gen, ("192.168.178.94".to_string(), false));
+                state.ping_map.insert(uuid_gen.clone(), (device.ip.clone(), false));
 
                 warn!("{:?}", state.ping_map);
 
-                crate::services::ping::spawn(state.ping_send.clone(), "192.168.178.94".to_string(), uuid_genc.clone(), state.ping_map.clone()).await
+                crate::services::ping::spawn(state.ping_send.clone(), device.ip, uuid_gen.clone(), &state.ping_map).await
             });
-            Some(uuid_gencc)
+            Some(uuid_genc)
         } else { None };
         Ok(Json(json!(StartResponse { id: device.id, boot: true, uuid })))
     } else {
