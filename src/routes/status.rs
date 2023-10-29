@@ -1,12 +1,10 @@
 use std::sync::Arc;
 use axum::extract::{State, WebSocketUpgrade};
 use axum::response::Response;
-use serde::Deserialize;
 use crate::AppState;
 use crate::services::ping::status_websocket;
 
 #[axum_macros::debug_handler]
 pub async fn status(State(state): State<Arc<AppState>>, ws: WebSocketUpgrade) -> Response {
-    // TODO: remove unwrap
     ws.on_upgrade(move |socket| status_websocket(socket, state.ping_send.clone(), state.ping_map.clone()))
 }

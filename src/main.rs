@@ -14,6 +14,7 @@ use crate::db::init_db_pool;
 use crate::routes::device::{get_device, post_device, put_device};
 use crate::routes::start::start;
 use crate::routes::status::status;
+use crate::services::ping::{BroadcastCommands, PingMap};
 
 mod auth;
 mod config;
@@ -72,6 +73,6 @@ async fn main() {
 
 pub struct AppState {
     db: PgPool,
-    ping_send: Sender<String>,
-    ping_map: Arc<Mutex<HashMap<String, (String, bool)>>>,
+    ping_send: Sender<BroadcastCommands>,
+    ping_map: PingMap,
 }
