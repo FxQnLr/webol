@@ -47,7 +47,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
             let uuid_gencc = uuid_gen.clone();
             tokio::spawn(async move{
                 debug!("Init ping service");
-                state.ping_map.lock().await.insert(uuid_gen, ("192.168.178.94".to_string(), false));
+                state.ping_map.insert(uuid_gen, ("192.168.178.94".to_string(), false));
 
                 warn!("{:?}", state.ping_map);
 

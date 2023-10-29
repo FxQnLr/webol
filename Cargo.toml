@@ -19,3 +19,4 @@ sqlx = { version = "0.7.1", features = ["postgres", "runtime-tokio"]}
 surge-ping = "0.8.0"
 axum-macros = "0.3.8"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
+dashmap = "5.5.3"

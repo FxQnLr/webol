@@ -1,12 +1,11 @@
-use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use axum::{Router, routing::post};
 use axum::routing::{get, put};
+use dashmap::DashMap;
 use sqlx::PgPool;
 use time::util::local_offset;
 use tokio::sync::broadcast::{channel, Sender};
-use tokio::sync::Mutex;
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
 use crate::config::SETTINGS;
@@ -51,9 +50,9 @@ async fn main() {
 
     let (tx, _) = channel(32);
 
-    let ping_map: HashMap<String, (String, bool)> = HashMap::new();
+    let ping_map: DashMap<String, (String, bool)> = DashMap::new();
     
-    let shared_state = Arc::new(AppState { db, ping_send: tx, ping_map: Arc::new(Mutex::new(ping_map)) });
+    let shared_state = Arc::new(AppState { db, ping_send: tx, ping_map: Arc::new(ping_map) });
 
     let app = Router::new()
         .route("/start", post(start))

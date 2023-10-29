@@ -1,16 +1,15 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use axum::extract::{ws::WebSocket};
 use axum::extract::ws::{CloseFrame, Message};
+use dashmap::DashMap;
 use tokio::sync::broadcast::{Sender};
-use tokio::sync::Mutex;
 use tracing::{debug, trace, warn};
 
 use crate::error::WebolError;
 
-pub type PingMap = Arc<Mutex<HashMap<String, (String, bool)>>>;
+pub type PingMap = Arc<DashMap<String, (String, bool)>>;
 
 pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping_map: PingMap) -> Result<(), WebolError> {
     let payload = [0; 8];
@@ -41,11 +40,11 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping
 
 async fn handle_broadcast_send(tx: &Sender<BroadcastCommands>, ip: String, ping_map: PingMap, uuid: String) {
     debug!("sending pingsuccess message");
-    ping_map.lock().await.insert(uuid.clone(), (ip.clone(), true));
+    ping_map.insert(uuid.clone(), (ip.clone(), true));
     let _ = tx.send(BroadcastCommands::PingSuccess(ip));
     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
     trace!("remove {} from ping_map", uuid);
-    ping_map.lock().await.remove(&uuid);
+    ping_map.remove(&uuid);
 }
 
 #[derive(Clone, Debug)]
@@ -63,7 +62,7 @@ pub async fn status_websocket(mut socket: WebSocket, tx: Sender<BroadcastCommand
     trace!("Search for uuid: {:?}", uuid);
 
     // TODO: Handle Error
-    let device = ping_map.lock().await.get(&uuid).unwrap().to_owned();
+    let device = ping_map.get(&uuid).unwrap().to_owned();
 
     trace!("got device: {:?}", device);
 
