@@ -10,7 +10,13 @@ use crate::AppState;
 
 use crate::error::WebolError;
 
-pub type PingMap = DashMap<String, (String, bool)>;
+pub type PingMap = DashMap<String, PingValue>;
+
+#[derive(Debug, Clone)]
+pub struct PingValue {
+    pub ip: String,
+    pub online: bool
+}
 
 pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping_map: &PingMap) -> Result<(), WebolError> {
     let payload = [0; 8];
@@ -32,7 +38,7 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping
             let (_, duration) = ping.unwrap();
             debug!("Ping took {:?}", duration);
             cont = false;
-            handle_broadcast_send(&tx, ip.clone(), &ping_map, uuid.clone()).await;
+            handle_broadcast_send(&tx, ip.clone(), ping_map, uuid.clone()).await;
         };
     }
 
@@ -41,7 +47,7 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping
 
 async fn handle_broadcast_send(tx: &Sender<BroadcastCommands>, ip: String, ping_map: &PingMap, uuid: String) {
     debug!("sending pingsuccess message");
-    ping_map.insert(uuid.clone(), (ip.clone(), true));
+    ping_map.insert(uuid.clone(), PingValue { ip: ip.clone(), online: true });
     let _ = tx.send(BroadcastCommands::PingSuccess(ip));
     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
     trace!("remove {} from ping_map", uuid);
@@ -67,7 +73,7 @@ pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
 
     trace!("got device: {:?}", device);
 
-    match device.1 {
+    match device.online {
         true => {
             debug!("already started");
             // TODO: What's better?
@@ -76,7 +82,7 @@ pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
             socket.send(Message::Close(Some(CloseFrame { code: 4001, reason: Cow::from(format!("start_{}", uuid)) }))).await.unwrap();
         },
         false => {
-            let ip = device.0.to_owned();
+            let ip = device.ip.to_owned();
             loop{
                 trace!("wait for tx message");
                 let message = state.ping_send.subscribe().recv().await.unwrap();

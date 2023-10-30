@@ -50,7 +50,7 @@ async fn main() {
 
     let (tx, _) = channel(32);
 
-    let ping_map: DashMap<String, (String, bool)> = DashMap::new();
+    let ping_map: PingMap = DashMap::new();
     
     let shared_state = Arc::new(AppState { db, ping_send: tx, ping_map });
 

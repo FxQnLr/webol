@@ -11,6 +11,7 @@ use crate::config::SETTINGS;
 use crate::wol::{create_buffer, send_packet};
 use crate::db::Device;
 use crate::error::WebolError;
+use crate::services::ping::PingValue;
 
 #[axum_macros::debug_handler]
 pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<StartPayload>) -> Result<Json<Value>, WebolError> {
@@ -46,7 +47,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
             let uuid_genc = uuid_gen.clone();
             tokio::spawn(async move {
                 debug!("Init ping service");
-                state.ping_map.insert(uuid_gen.clone(), (device.ip.clone(), false));
+                state.ping_map.insert(uuid_gen.clone(), PingValue { ip: device.ip.clone(), online: false });
 
                 warn!("{:?}", state.ping_map);
 
