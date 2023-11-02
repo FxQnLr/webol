@@ -8,7 +8,7 @@ use tracing::{debug, info};
 #[cfg(not(debug_assertions))]
 use crate::config::SETTINGS;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Device {
     pub id: String,
     pub mac: String,

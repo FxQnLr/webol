@@ -1,14 +1,13 @@
-use std::borrow::Cow;
 use std::sync::Arc;
 
 use axum::extract::{ws::WebSocket};
-use axum::extract::ws::{CloseFrame, Message};
+use axum::extract::ws::Message;
 use dashmap::DashMap;
+use time::{Duration, Instant};
 use tokio::sync::broadcast::{Sender};
-use tracing::{debug, trace, warn};
+use tracing::{debug, error, trace};
 use crate::AppState;
-
-use crate::error::WebolError;
+use crate::config::SETTINGS;
 
 pub type PingMap = DashMap<String, PingValue>;
 
@@ -18,92 +17,97 @@ pub struct PingValue {
     pub online: bool
 }
 
-pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping_map: &PingMap) -> Result<(), WebolError> {
+pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping_map: &PingMap) {
+    let timer = Instant::now();
     let payload = [0; 8];
 
-    // TODO: Better while
     let mut cont = true;
     while cont {
         let ping = surge_ping::ping(
-            ip.parse().map_err(WebolError::IpParse)?,
+            ip.parse().expect("bad ip"),
             &payload
         ).await;
 
         if let Err(ping) = ping {
             cont = matches!(ping, surge_ping::SurgeError::Timeout { .. });
             if !cont {
-                return Err(ping).map_err(WebolError::Ping)
+                error!("{}", ping.to_string());
+            }
+            if timer.elapsed() >= Duration::minutes(SETTINGS.get_int("pingtimeout").unwrap_or(10)) {
+                let _ = tx.send(BroadcastCommands::PingTimeout(uuid.clone()));
+                trace!("remove {} from ping_map after timeout", uuid);
+                ping_map.remove(&uuid);
+                cont = false;
             }
         } else {
-            let (_, duration) = ping.unwrap();
+            let (_, duration) = ping.map_err(|err| error!("{}", err.to_string())).expect("fatal error");
             debug!("Ping took {:?}", duration);
             cont = false;
             handle_broadcast_send(&tx, ip.clone(), ping_map, uuid.clone()).await;
         };
     }
-
-    Ok(())
 }
 
 async fn handle_broadcast_send(tx: &Sender<BroadcastCommands>, ip: String, ping_map: &PingMap, uuid: String) {
-    debug!("sending pingsuccess message");
+    debug!("send pingsuccess message");
     ping_map.insert(uuid.clone(), PingValue { ip: ip.clone(), online: true });
-    let _ = tx.send(BroadcastCommands::PingSuccess(ip));
+    let _ = tx.send(BroadcastCommands::PingSuccess(uuid.clone()));
     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-    trace!("remove {} from ping_map", uuid);
+    trace!("remove {} from ping_map after success", uuid);
     ping_map.remove(&uuid);
 }
 
 #[derive(Clone, Debug)]
 pub enum BroadcastCommands {
-    PingSuccess(String)
+    PingSuccess(String),
+    PingTimeout(String)
 }
 
 pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
-    warn!("{:?}", state.ping_map);
-
     trace!("wait for ws message (uuid)");
     let msg = socket.recv().await;
     let uuid = msg.unwrap().unwrap().into_text().unwrap();
 
     trace!("Search for uuid: {:?}", uuid);
 
-    // TODO: Handle Error
-    let device = state.ping_map.get(&uuid).unwrap().to_owned();
+    match state.ping_map.get(&uuid) {
+        Some(device) => {
+            debug!("got device: {} (online: {})", device.ip, device.online);
+            let _ = socket.send(process_device(state.clone(), uuid, device.to_owned()).await).await;
+        },
+        None => {
+            debug!("didn't find any device");
+            let _ = socket.send(Message::Text(format!("notfound_{}", uuid))).await;
+        },
+    };
 
-    trace!("got device: {:?}", device);
+    let _ = socket.close().await;
+}
 
+async fn process_device(state: Arc<AppState>, uuid: String, device: PingValue) -> Message {
     match device.online {
         true => {
             debug!("already started");
-            // TODO: What's better?
-            // socket.send(Message::Text(format!("start_{}", uuid))).await.unwrap();
-            // socket.close().await.unwrap();
-            socket.send(Message::Close(Some(CloseFrame { code: 4001, reason: Cow::from(format!("start_{}", uuid)) }))).await.unwrap();
+            Message::Text(format!("start_{}", uuid))
         },
         false => {
-            let ip = device.ip.to_owned();
             loop{
                 trace!("wait for tx message");
-                let message = state.ping_send.subscribe().recv().await.unwrap();
-                trace!("GOT = {:?}", message);
-                // if let BroadcastCommands::PingSuccess(msg_ip) = message {
-                //     if msg_ip == ip {
-                //         trace!("message == ip");
-                //         break;
-                //     }
-                // }
-                let BroadcastCommands::PingSuccess(msg_ip) = message;
-                if msg_ip == ip {
-                    trace!("message == ip");
-                    break;
+                let message = state.ping_send.subscribe().recv().await.expect("fatal error");
+                trace!("got message {:?}", message);
+                return match message {
+                    BroadcastCommands::PingSuccess(msg_uuid) => {
+                        if msg_uuid != uuid { continue; }
+                        trace!("message == uuid success");
+                        Message::Text(format!("start_{}", uuid))
+                    },
+                    BroadcastCommands::PingTimeout(msg_uuid) => {
+                        if msg_uuid != uuid { continue; }
+                        trace!("message == uuid timeout");
+                        Message::Text(format!("timeout_{}", uuid))
+                    }
                 }
-            };
-
-            socket.send(Message::Close(Some(CloseFrame { code: 4000, reason: Cow::from(format!("start_{}", uuid)) }))).await.unwrap();
-            // socket.send(Message::Text(format!("start_{}", uuid))).await.unwrap();
-            // socket.close().await.unwrap();
-            warn!("{:?}", state.ping_map);
+            }
         }
     }
 }

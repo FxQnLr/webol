@@ -49,8 +49,6 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
                 debug!("Init ping service");
                 state.ping_map.insert(uuid_gen.clone(), PingValue { ip: device.ip.clone(), online: false });
 
-                warn!("{:?}", state.ping_map);
-
                 crate::services::ping::spawn(state.ping_send.clone(), device.ip, uuid_gen.clone(), &state.ping_map).await
             });
             Some(uuid_genc)
