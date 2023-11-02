@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use axum::extract::State;
 use serde_json::{json, Value};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 use crate::auth::auth;
 use crate::config::SETTINGS;
@@ -16,6 +16,7 @@ use crate::services::ping::PingValue;
 #[axum_macros::debug_handler]
 pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<StartPayload>) -> Result<Json<Value>, WebolError> {
     info!("POST request");
+    warn!("{:?}", state.ping_map);
     let secret = headers.get("authorization");
     let authorized = auth(secret).map_err(WebolError::Auth)?;
     if authorized {
@@ -45,7 +46,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
             let uuid_gen = Uuid::new_v4().to_string();
             let uuid_genc = uuid_gen.clone();
             tokio::spawn(async move {
-                debug!("init ping service");
+                debug!("Init ping service");
                 state.ping_map.insert(uuid_gen.clone(), PingValue { ip: device.ip.clone(), online: false });
 
                 crate::services::ping::spawn(state.ping_send.clone(), device.ip, uuid_gen.clone(), &state.ping_map).await
