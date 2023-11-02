@@ -41,7 +41,7 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping
             }
         } else {
             let (_, duration) = ping.map_err(|err| error!("{}", err.to_string())).expect("fatal error");
-            debug!("Ping took {:?}", duration);
+            debug!("ping took {:?}", duration);
             cont = false;
             handle_broadcast_send(&tx, ip.clone(), ping_map, uuid.clone()).await;
         };
@@ -50,10 +50,12 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping
 
 async fn handle_broadcast_send(tx: &Sender<BroadcastCommands>, ip: String, ping_map: &PingMap, uuid: String) {
     debug!("send pingsuccess message");
-    ping_map.insert(uuid.clone(), PingValue { ip: ip.clone(), online: true });
     let _ = tx.send(BroadcastCommands::PingSuccess(uuid.clone()));
+    trace!("sent message");
+    ping_map.insert(uuid.clone(), PingValue { ip: ip.clone(), online: true });
+    trace!("updated ping_map");
     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-    trace!("remove {} from ping_map after success", uuid);
+    debug!("remove {} from ping_map after success", uuid);
     ping_map.remove(&uuid);
 }
 
@@ -70,12 +72,12 @@ pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
 
     trace!("Search for uuid: {:?}", uuid);
 
-    match state.ping_map.get(&uuid) {
-        Some(device) => {
-            debug!("got device: {} (online: {})", device.ip, device.online);
-            let _ = socket.send(process_device(state.clone(), uuid, device.to_owned()).await).await;
+    let device_exists = state.ping_map.contains_key(&uuid);
+    match device_exists {
+        true => {
+            let _ = socket.send(process_device(state.clone(), uuid).await).await;
         },
-        None => {
+        false => {
             debug!("didn't find any device");
             let _ = socket.send(Message::Text(format!("notfound_{}", uuid))).await;
         },
@@ -84,7 +86,10 @@ pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
     let _ = socket.close().await;
 }
 
-async fn process_device(state: Arc<AppState>, uuid: String, device: PingValue) -> Message {
+async fn process_device(state: Arc<AppState>, uuid: String) -> Message {
+    let pm = state.ping_map.clone().into_read_only();
+    let device = pm.get(&uuid).expect("fatal error");
+    debug!("got device: {} (online: {})", device.ip, device.online);
     match device.online {
         true => {
             debug!("already started");
