@@ -4,24 +4,26 @@ use axum::headers::HeaderMap;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tracing::info;
+use tracing::{debug, info};
 use crate::auth::auth;
 use crate::db::Device;
 use crate::error::WebolError;
 
 pub async fn get_device(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<GetDevicePayload>) -> Result<Json<Value>, WebolError> {
-    info!("GET request");
+    info!("add device {}", payload.id);
     let secret = headers.get("authorization");
     if auth(secret).map_err(WebolError::Auth)? {
         let device = sqlx::query_as!(
             Device,
             r#"
-            SELECT id, mac, broadcast_addr
+            SELECT id, mac, broadcast_addr, ip
             FROM devices
             WHERE id = $1;
             "#,
             payload.id
-        ).fetch_one(&state.db).await.map_err(|err| WebolError::Server(Box::new(err)))?;
+        ).fetch_one(&state.db).await.map_err(WebolError::DB)?;
+
+        debug!("got device {:?}", device);
 
         Ok(Json(json!(device)))
     } else {
@@ -35,18 +37,19 @@ pub struct GetDevicePayload {
 }
 
 pub async fn put_device(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<PutDevicePayload>) -> Result<Json<Value>, WebolError> {
-    info!("PUT request");
+    info!("add device {} ({}, {}, {})", payload.id, payload.mac, payload.broadcast_addr, payload.ip);
     let secret = headers.get("authorization");
     if auth(secret).map_err(WebolError::Auth)? {
         sqlx::query!(
             r#"
-            INSERT INTO devices (id, mac, broadcast_addr)
-            VALUES ($1, $2, $3);
+            INSERT INTO devices (id, mac, broadcast_addr, ip)
+            VALUES ($1, $2, $3, $4);
             "#,
             payload.id,
             payload.mac,
-            payload.broadcast_addr
-        ).execute(&state.db).await.map_err(|err| WebolError::Server(Box::new(err)))?;
+            payload.broadcast_addr,
+            payload.ip
+        ).execute(&state.db).await.map_err(WebolError::DB)?;
 
         Ok(Json(json!(PutDeviceResponse { success: true })))
     } else {
@@ -59,6 +62,7 @@ pub struct PutDevicePayload {
     id: String,
     mac: String,
     broadcast_addr: String,
+    ip: String
 }
 
 #[derive(Serialize)]
@@ -67,20 +71,21 @@ pub struct PutDeviceResponse {
 }
 
 pub async fn post_device(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<PostDevicePayload>) -> Result<Json<Value>, WebolError> {
-    info!("POST request");
+    info!("edit device {} ({}, {}, {})", payload.id, payload.mac, payload.broadcast_addr, payload.ip);
     let secret = headers.get("authorization");
     if auth(secret).map_err(WebolError::Auth)? {
         let device = sqlx::query_as!(
             Device,
             r#"
             UPDATE devices
-            SET mac = $1, broadcast_addr = $2 WHERE id = $3
-            RETURNING id, mac, broadcast_addr;
+            SET mac = $1, broadcast_addr = $2, ip = $3 WHERE id = $4
+            RETURNING id, mac, broadcast_addr, ip;
             "#,
             payload.mac,
             payload.broadcast_addr,
+            payload.ip,
             payload.id
-        ).fetch_one(&state.db).await.map_err(|err| WebolError::Server(Box::new(err)))?;
+        ).fetch_one(&state.db).await.map_err(WebolError::DB)?;
 
         Ok(Json(json!(device)))
     } else {
@@ -93,4 +98,5 @@ pub struct PostDevicePayload {
     id: String,
     mac: String,
     broadcast_addr: String,
+    ip: String,
 }

@@ -19,21 +19,9 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.3
 
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-          override: true
 
-      - name: run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-
-      - name: run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
+      - run: cargo check
+      - run: cargo clippy
 
   check-release:
     runs-on: ubuntu-latest
@@ -42,20 +30,6 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.3
 
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-          override: true
 
-      - name: run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --release
-
-      - name: run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --release
+      - run: cargo check --release
+      - run: cargo clippy --release
