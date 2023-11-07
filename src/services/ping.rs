@@ -1,3 +1,5 @@
+use std::str::FromStr;
+use std::net::IpAddr;
 use std::sync::Arc;
 
 use axum::extract::{ws::WebSocket};
@@ -21,48 +23,47 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping
     let timer = Instant::now();
     let payload = [0; 8];
 
-    let mut cont = true;
-    while cont {
+    let ping_ip = IpAddr::from_str(&ip).expect("bad ip");
+
+    let mut msg: Option<BroadcastCommands> = None;
+    while msg.is_none() {
         let ping = surge_ping::ping(
-            ip.parse().expect("bad ip"),
+            ping_ip,
             &payload
         ).await;
 
         if let Err(ping) = ping {
-            cont = matches!(ping, surge_ping::SurgeError::Timeout { .. });
-            if !cont {
+            let ping_timeout = matches!(ping, surge_ping::SurgeError::Timeout { .. });
+            if !ping_timeout {
                 error!("{}", ping.to_string());
+                msg = Some(BroadcastCommands::Error(uuid.clone()));
             }
             if timer.elapsed() >= Duration::minutes(SETTINGS.get_int("pingtimeout").unwrap_or(10)) {
-                let _ = tx.send(BroadcastCommands::PingTimeout(uuid.clone()));
-                trace!("remove {} from ping_map after timeout", uuid);
-                ping_map.remove(&uuid);
-                cont = false;
+                msg = Some(BroadcastCommands::Timeout(uuid.clone()));
             }
         } else {
             let (_, duration) = ping.map_err(|err| error!("{}", err.to_string())).expect("fatal error");
             debug!("ping took {:?}", duration);
-            cont = false;
-            handle_broadcast_send(&tx, ip.clone(), ping_map, uuid.clone()).await;
+            msg = Some(BroadcastCommands::Success(uuid.clone()));
         };
     }
-}
 
-async fn handle_broadcast_send(tx: &Sender<BroadcastCommands>, ip: String, ping_map: &PingMap, uuid: String) {
-    debug!("send pingsuccess message");
-    let _ = tx.send(BroadcastCommands::PingSuccess(uuid.clone()));
-    trace!("sent message");
-    ping_map.insert(uuid.clone(), PingValue { ip: ip.clone(), online: true });
-    trace!("updated ping_map");
-    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-    debug!("remove {} from ping_map after success", uuid);
+    let msg = msg.expect("fatal error");
+
+    let _ = tx.send(msg.clone());
+    if let BroadcastCommands::Success(..) = msg {
+        ping_map.insert(uuid.clone(), PingValue { ip: ip.clone(), online: true });
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+    }
+    trace!("remove {} from ping_map", uuid);
     ping_map.remove(&uuid);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BroadcastCommands {
-    PingSuccess(String),
-    PingTimeout(String)
+    Success(String),
+    Timeout(String),
+    Error(String),
 }
 
 pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
@@ -101,15 +102,20 @@ async fn process_device(state: Arc<AppState>, uuid: String) -> Message {
                 let message = state.ping_send.subscribe().recv().await.expect("fatal error");
                 trace!("got message {:?}", message);
                 return match message {
-                    BroadcastCommands::PingSuccess(msg_uuid) => {
+                    BroadcastCommands::Success(msg_uuid) => {
                         if msg_uuid != uuid { continue; }
                         trace!("message == uuid success");
                         Message::Text(format!("start_{}", uuid))
                     },
-                    BroadcastCommands::PingTimeout(msg_uuid) => {
+                    BroadcastCommands::Timeout(msg_uuid) => {
                         if msg_uuid != uuid { continue; }
                         trace!("message == uuid timeout");
                         Message::Text(format!("timeout_{}", uuid))
+                    },
+                    BroadcastCommands::Error(msg_uuid) => {
+                        if msg_uuid != uuid { continue; }
+                        trace!("message == uuid error");
+                        Message::Text(format!("error_{}", uuid))
                     }
                 }
             }
