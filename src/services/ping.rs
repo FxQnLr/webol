@@ -5,11 +5,13 @@ use std::sync::Arc;
 use axum::extract::{ws::WebSocket};
 use axum::extract::ws::Message;
 use dashmap::DashMap;
+use sqlx::PgPool;
 use time::{Duration, Instant};
 use tokio::sync::broadcast::{Sender};
 use tracing::{debug, error, trace};
 use crate::AppState;
 use crate::config::SETTINGS;
+use crate::db::Device;
 
 pub type PingMap = DashMap<String, PingValue>;
 
@@ -19,11 +21,11 @@ pub struct PingValue {
     pub online: bool
 }
 
-pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping_map: &PingMap) {
+pub async fn spawn(tx: Sender<BroadcastCommands>, device: Device, uuid: String, ping_map: &PingMap, db: &PgPool) {
     let timer = Instant::now();
     let payload = [0; 8];
 
-    let ping_ip = IpAddr::from_str(&ip).expect("bad ip");
+    let ping_ip = IpAddr::from_str(&device.ip).expect("bad ip");
 
     let mut msg: Option<BroadcastCommands> = None;
     while msg.is_none() {
@@ -52,7 +54,16 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, ip: String, uuid: String, ping
 
     let _ = tx.send(msg.clone());
     if let BroadcastCommands::Success(..) = msg {
-        ping_map.insert(uuid.clone(), PingValue { ip: ip.clone(), online: true });
+        sqlx::query!(
+            r#"
+            UPDATE devices
+            SET times = array_append(times, $1)
+            WHERE id = $2;
+            "#,
+            timer.elapsed().whole_seconds(),
+            device.id
+        ).execute(db).await.unwrap();
+        ping_map.insert(uuid.clone(), PingValue { ip: device.ip.clone(), online: true });
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
     }
     trace!("remove {} from ping_map", uuid);
@@ -71,7 +82,10 @@ pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
     let msg = socket.recv().await;
     let uuid = msg.unwrap().unwrap().into_text().unwrap();
 
-    trace!("Search for uuid: {:?}", uuid);
+    trace!("Search for uuid: {}", uuid);
+
+    let eta = get_eta(&state.db).await;
+    let _ = socket.send(Message::Text(format!("eta_{}_{}", eta, uuid))).await;
 
     let device_exists = state.ping_map.contains_key(&uuid);
     match device_exists {
@@ -85,6 +99,21 @@ pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
     };
 
     let _ = socket.close().await;
+}
+
+async fn get_eta(db: &PgPool) -> i64 {
+    let query = sqlx::query!(
+        r#"SELECT times FROM devices;"#
+    ).fetch_optional(db).await.unwrap();
+
+    match query {
+        None => { -1 },
+        Some(rec) => {
+            let times = rec.times.unwrap();
+            times.iter().sum::<i64>() / times.len() as i64
+        }
+    }
+
 }
 
 async fn process_device(state: Arc<AppState>, uuid: String) -> Message {

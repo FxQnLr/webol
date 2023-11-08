@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE devices\n            SET times = array_append(times, $1)\n            WHERE id = $2;\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "25ab5caa92ff80ef3f85ddce1174021ce0fb896a818a6deee291a1eb85ae2a8a"
+}
