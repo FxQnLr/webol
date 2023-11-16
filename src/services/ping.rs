@@ -104,15 +104,13 @@ pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
 async fn get_eta(db: &PgPool) -> i64 {
     let query = sqlx::query!(
         r#"SELECT times FROM devices;"#
-    ).fetch_optional(db).await.unwrap();
+    ).fetch_one(db).await.unwrap();
 
-    match query {
-        None => { -1 },
-        Some(rec) => {
-            let times = rec.times.unwrap();
-            times.iter().sum::<i64>() / times.len() as i64
-        }
-    }
+    let times = match query.times {
+        None => { vec![0] },
+        Some(t) => t,
+    };
+    times.iter().sum::<i64>() / times.len() as i64
 
 }
 
