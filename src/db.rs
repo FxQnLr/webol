@@ -13,7 +13,8 @@ pub struct Device {
     pub id: String,
     pub mac: String,
     pub broadcast_addr: String,
-    pub ip: String
+    pub ip: String,
+    pub times: Option<Vec<i64>>
 }
 
 pub async fn init_db_pool() -> PgPool {

@@ -22,7 +22,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
         let device = sqlx::query_as!(
             Device,
             r#"
-            SELECT id, mac, broadcast_addr, ip
+            SELECT id, mac, broadcast_addr, ip, times
             FROM devices
             WHERE id = $1;
             "#,
@@ -40,19 +40,31 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
             &device.broadcast_addr.parse().map_err(WebolError::IpParse)?,
             create_buffer(&device.mac)?
         )?;
-
+        let dev_id = device.id.clone();
         let uuid = if payload.ping.is_some_and(|ping| ping) {
-            let uuid_gen = Uuid::new_v4().to_string();
+            let mut uuid: Option<String> = None;
+            for (key, value) in state.ping_map.clone() {
+                if value.ip == device.ip {
+                    debug!("service already exists");
+                    uuid = Some(key);
+                    break;
+                }
+            };
+            let uuid_gen = match uuid {
+                Some(u) => u,
+                None => Uuid::new_v4().to_string(),
+            };
             let uuid_genc = uuid_gen.clone();
+
             tokio::spawn(async move {
                 debug!("init ping service");
                 state.ping_map.insert(uuid_gen.clone(), PingValue { ip: device.ip.clone(), online: false });
 
-                crate::services::ping::spawn(state.ping_send.clone(), device.ip, uuid_gen.clone(), &state.ping_map).await
+                crate::services::ping::spawn(state.ping_send.clone(), device, uuid_gen.clone(), &state.ping_map, &state.db).await
             });
             Some(uuid_genc)
         } else { None };
-        Ok(Json(json!(StartResponse { id: device.id, boot: true, uuid })))
+        Ok(Json(json!(StartResponse { id: dev_id, boot: true, uuid })))
     } else {
         Err(WebolError::Generic)
     }

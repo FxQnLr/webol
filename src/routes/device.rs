@@ -16,7 +16,7 @@ pub async fn get_device(State(state): State<Arc<crate::AppState>>, headers: Head
         let device = sqlx::query_as!(
             Device,
             r#"
-            SELECT id, mac, broadcast_addr, ip
+            SELECT id, mac, broadcast_addr, ip, times
             FROM devices
             WHERE id = $1;
             "#,
@@ -79,7 +79,7 @@ pub async fn post_device(State(state): State<Arc<crate::AppState>>, headers: Hea
             r#"
             UPDATE devices
             SET mac = $1, broadcast_addr = $2, ip = $3 WHERE id = $4
-            RETURNING id, mac, broadcast_addr, ip;
+            RETURNING id, mac, broadcast_addr, ip, times;
             "#,
             payload.mac,
             payload.broadcast_addr,

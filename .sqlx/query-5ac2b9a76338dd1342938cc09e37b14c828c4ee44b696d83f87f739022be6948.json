@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT times FROM devices;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "times",
+        "type_info": "Int8Array"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "5ac2b9a76338dd1342938cc09e37b14c828c4ee44b696d83f87f739022be6948"
+}
