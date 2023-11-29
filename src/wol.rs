@@ -11,7 +11,7 @@ pub fn create_buffer(mac_addr: &str) -> Result<Vec<u8>, WebolError> {
     let mut mac = Vec::new();
     let sp = mac_addr.split(':');
     for f in sp {
-        mac.push(u8::from_str_radix(f, 16).map_err(WebolError::BufferParse)?)
+        mac.push(u8::from_str_radix(f, 16).map_err(WebolError::BufferParse)?);
     };
     let mut buf = vec![255; 6];
     for _ in 0..16 {

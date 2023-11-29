@@ -1,5 +1,5 @@
-use axum::headers::HeaderMap;
 use axum::Json;
+use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use axum::extract::State;
@@ -60,7 +60,7 @@ pub async fn start(State(state): State<Arc<crate::AppState>>, headers: HeaderMap
                 debug!("init ping service");
                 state.ping_map.insert(uuid_gen.clone(), PingValue { ip: device.ip.clone(), online: false });
 
-                crate::services::ping::spawn(state.ping_send.clone(), device, uuid_gen.clone(), &state.ping_map, &state.db).await
+                crate::services::ping::spawn(state.ping_send.clone(), device, uuid_gen.clone(), &state.ping_map, &state.db).await;
             });
             Some(uuid_genc)
         } else { None };

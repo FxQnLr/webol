@@ -1,4 +1,5 @@
 use std::env;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use axum::{Router, routing::post};
 use axum::routing::{get, put};
@@ -24,7 +25,10 @@ mod error;
 mod services;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> color_eyre::eyre::Result<()> {
+
+    color_eyre::install()?;
+
     unsafe { local_offset::set_soundness(local_offset::Soundness::Unsound); }
     let time_format =
         time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
@@ -64,10 +68,11 @@ async fn main() {
 
     let addr = SETTINGS.get_string("serveraddr").unwrap_or("0.0.0.0:7229".to_string());
     info!("start server on {}", addr);
-    axum::Server::bind(&addr.parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind(addr.parse::<SocketAddr>()?)
+        .await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }
 
 pub struct AppState {

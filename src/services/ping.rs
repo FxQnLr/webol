@@ -85,17 +85,14 @@ pub async fn status_websocket(mut socket: WebSocket, state: Arc<AppState>) {
     trace!("Search for uuid: {}", uuid);
 
     let eta = get_eta(&state.db).await;
-    let _ = socket.send(Message::Text(format!("eta_{}_{}", eta, uuid))).await;
+    let _ = socket.send(Message::Text(format!("eta_{eta}_{uuid}"))).await;
 
     let device_exists = state.ping_map.contains_key(&uuid);
-    match device_exists {
-        true => {
-            let _ = socket.send(process_device(state.clone(), uuid).await).await;
-        },
-        false => {
-            debug!("didn't find any device");
-            let _ = socket.send(Message::Text(format!("notfound_{}", uuid))).await;
-        },
+    if device_exists {
+        let _ = socket.send(process_device(state.clone(), uuid).await).await;
+    } else {
+        debug!("didn't find any device");
+        let _ = socket.send(Message::Text(format!("notfound_{uuid}"))).await;
     };
 
     let _ = socket.close().await;
@@ -118,32 +115,29 @@ async fn process_device(state: Arc<AppState>, uuid: String) -> Message {
     let pm = state.ping_map.clone().into_read_only();
     let device = pm.get(&uuid).expect("fatal error");
     debug!("got device: {} (online: {})", device.ip, device.online);
-    match device.online {
-        true => {
-            debug!("already started");
-            Message::Text(format!("start_{}", uuid))
-        },
-        false => {
-            loop{
-                trace!("wait for tx message");
-                let message = state.ping_send.subscribe().recv().await.expect("fatal error");
-                trace!("got message {:?}", message);
-                return match message {
-                    BroadcastCommands::Success(msg_uuid) => {
-                        if msg_uuid != uuid { continue; }
-                        trace!("message == uuid success");
-                        Message::Text(format!("start_{}", uuid))
-                    },
-                    BroadcastCommands::Timeout(msg_uuid) => {
-                        if msg_uuid != uuid { continue; }
-                        trace!("message == uuid timeout");
-                        Message::Text(format!("timeout_{}", uuid))
-                    },
-                    BroadcastCommands::Error(msg_uuid) => {
-                        if msg_uuid != uuid { continue; }
-                        trace!("message == uuid error");
-                        Message::Text(format!("error_{}", uuid))
-                    }
+    if device.online {
+        debug!("already started");
+        Message::Text(format!("start_{uuid}"))
+    } else {
+        loop {
+            trace!("wait for tx message");
+            let message = state.ping_send.subscribe().recv().await.expect("fatal error");
+            trace!("got message {:?}", message);
+            return match message {
+                BroadcastCommands::Success(msg_uuid) => {
+                    if msg_uuid != uuid { continue; }
+                    trace!("message == uuid success");
+                    Message::Text(format!("start_{uuid}"))
+                },
+                BroadcastCommands::Timeout(msg_uuid) => {
+                    if msg_uuid != uuid { continue; }
+                    trace!("message == uuid timeout");
+                    Message::Text(format!("timeout_{uuid}"))
+                },
+                BroadcastCommands::Error(msg_uuid) => {
+                    if msg_uuid != uuid { continue; }
+                    trace!("message == uuid error");
+                    Message::Text(format!("error_{uuid}"))
                 }
             }
         }
