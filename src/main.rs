@@ -11,10 +11,10 @@ use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
 use crate::config::SETTINGS;
 use crate::db::init_db_pool;
-use crate::routes::device::{get_device, post_device, put_device};
+use crate::routes::device;
 use crate::routes::start::start;
 use crate::routes::status::status;
-use crate::services::ping::{BroadcastCommands, PingMap};
+use crate::services::ping::{BroadcastCommands, StatusMap};
 
 mod auth;
 mod config;
@@ -54,15 +54,15 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
     let (tx, _) = channel(32);
 
-    let ping_map: PingMap = DashMap::new();
+    let ping_map: StatusMap = DashMap::new();
     
     let shared_state = Arc::new(AppState { db, ping_send: tx, ping_map });
 
     let app = Router::new()
         .route("/start", post(start))
-        .route("/device", get(get_device))
-        .route("/device", put(put_device))
-        .route("/device", post(post_device))
+        .route("/device", get(device::get))
+        .route("/device", put(device::put))
+        .route("/device", post(device::post))
         .route("/status", get(status))
         .with_state(shared_state);
 
@@ -78,5 +78,5 @@ async fn main() -> color_eyre::eyre::Result<()> {
 pub struct AppState {
     db: PgPool,
     ping_send: Sender<BroadcastCommands>,
-    ping_map: PingMap,
+    ping_map: StatusMap,
 }

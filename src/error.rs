@@ -4,10 +4,10 @@ use axum::Json;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use tracing::error;
-use crate::auth::AuthError;
+use crate::auth::Error as AuthError;
 
 #[derive(Debug)]
-pub enum WebolError {
+pub enum Error {
     Generic,
     Auth(AuthError),
     DB(sqlx::Error),
@@ -16,7 +16,7 @@ pub enum WebolError {
     Broadcast(io::Error),
 }
 
-impl IntoResponse for WebolError {
+impl IntoResponse for Error {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
             Self::Auth(err) => {

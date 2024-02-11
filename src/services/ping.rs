@@ -2,26 +2,26 @@ use std::str::FromStr;
 use std::net::IpAddr;
 use std::sync::Arc;
 
-use axum::extract::{ws::WebSocket};
+use axum::extract::ws::WebSocket;
 use axum::extract::ws::Message;
 use dashmap::DashMap;
 use sqlx::PgPool;
 use time::{Duration, Instant};
-use tokio::sync::broadcast::{Sender};
+use tokio::sync::broadcast::Sender;
 use tracing::{debug, error, trace};
 use crate::AppState;
 use crate::config::SETTINGS;
 use crate::db::Device;
 
-pub type PingMap = DashMap<String, PingValue>;
+pub type StatusMap = DashMap<String, Value>;
 
 #[derive(Debug, Clone)]
-pub struct PingValue {
+pub struct Value {
     pub ip: String,
     pub online: bool
 }
 
-pub async fn spawn(tx: Sender<BroadcastCommands>, device: Device, uuid: String, ping_map: &PingMap, db: &PgPool) {
+pub async fn spawn(tx: Sender<BroadcastCommands>, device: Device, uuid: String, ping_map: &StatusMap, db: &PgPool) {
     let timer = Instant::now();
     let payload = [0; 8];
 
@@ -63,7 +63,7 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, device: Device, uuid: String, 
             timer.elapsed().whole_seconds(),
             device.id
         ).execute(db).await.unwrap();
-        ping_map.insert(uuid.clone(), PingValue { ip: device.ip.clone(), online: true });
+        ping_map.insert(uuid.clone(), Value { ip: device.ip.clone(), online: true });
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
     }
     trace!("remove {} from ping_map", uuid);
@@ -107,7 +107,7 @@ async fn get_eta(db: &PgPool) -> i64 {
         None => { vec![0] },
         Some(t) => t,
     };
-    times.iter().sum::<i64>() / times.len() as i64
+    times.iter().sum::<i64>() / i64::try_from(times.len()).unwrap()
 
 }
 
