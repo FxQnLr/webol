@@ -10,7 +10,7 @@ use time::{Duration, Instant};
 use tokio::sync::broadcast::Sender;
 use tracing::{debug, error, trace};
 use crate::AppState;
-use crate::config::SETTINGS;
+use crate::config::Config;
 use crate::db::Device;
 
 pub type StatusMap = DashMap<String, Value>;
@@ -21,7 +21,7 @@ pub struct Value {
     pub online: bool
 }
 
-pub async fn spawn(tx: Sender<BroadcastCommands>, device: Device, uuid: String, ping_map: &StatusMap, db: &PgPool) {
+pub async fn spawn(tx: Sender<BroadcastCommands>, config: &Config, device: Device, uuid: String, ping_map: &StatusMap, db: &PgPool) {
     let timer = Instant::now();
     let payload = [0; 8];
 
@@ -40,7 +40,7 @@ pub async fn spawn(tx: Sender<BroadcastCommands>, device: Device, uuid: String, 
                 error!("{}", ping.to_string());
                 msg = Some(BroadcastCommands::Error(uuid.clone()));
             }
-            if timer.elapsed() >= Duration::minutes(SETTINGS.get_int("pingtimeout").unwrap_or(10)) {
+            if timer.elapsed() >= Duration::minutes(config.pingtimeout) {
                 msg = Some(BroadcastCommands::Timeout(uuid.clone()));
             }
         } else {

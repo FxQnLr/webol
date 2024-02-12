@@ -1,5 +1,4 @@
 use crate::auth::auth;
-use crate::config::SETTINGS;
 use crate::db::Device;
 use crate::error::Error;
 use crate::services::ping::Value as PingValue;
@@ -21,7 +20,7 @@ pub async fn start(
 ) -> Result<Json<Value>, Error> {
     info!("POST request");
     let secret = headers.get("authorization");
-    let authorized = auth(secret).map_err(Error::Auth)?;
+    let authorized = auth(&state.config, secret).map_err(Error::Auth)?;
     if authorized {
         let device = sqlx::query_as!(
             Device,
@@ -38,9 +37,7 @@ pub async fn start(
 
         info!("starting {}", device.id);
 
-        let bind_addr = SETTINGS
-            .get_string("bindaddr")
-            .unwrap_or("0.0.0.0:1111".to_string());
+        let bind_addr = "0.0.0.0:0";
 
         let _ = send_packet(
             &bind_addr.parse().map_err(Error::IpParse)?,
@@ -75,6 +72,7 @@ pub async fn start(
 
                 crate::services::ping::spawn(
                     state.ping_send.clone(),
+                    &state.config,
                     device,
                     uuid_gen.clone(),
                     &state.ping_map,

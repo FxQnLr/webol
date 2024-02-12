@@ -2,15 +2,13 @@ use axum::http::{StatusCode, HeaderValue};
 use axum::http::header::ToStrError;
 use tracing::{debug, error, trace};
 use crate::auth::Error::{MissingSecret, WrongSecret};
-use crate::config::SETTINGS;
+use crate::config::Config;
 
-pub fn auth(secret: Option<&HeaderValue>) -> Result<bool, Error> {
+pub fn auth(config: &Config, secret: Option<&HeaderValue>) -> Result<bool, Error> {
     debug!("auth request with secret {:?}", secret);
     if let Some(value) = secret {
         trace!("value exists");
-        let key = SETTINGS
-            .get_string("apikey")
-            .map_err(Error::Config)?;
+        let key = &config.apikey;
         if value.to_str().map_err(Error::HeaderToStr)? == key.as_str() {
             debug!("successful auth");
             Ok(true)
@@ -28,7 +26,6 @@ pub fn auth(secret: Option<&HeaderValue>) -> Result<bool, Error> {
 pub enum Error {
     WrongSecret,
     MissingSecret,
-    Config(config::ConfigError),
     HeaderToStr(ToStrError)
 }
 
@@ -37,10 +34,6 @@ impl Error {
         match self {
             Self::WrongSecret => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
             Self::MissingSecret => (StatusCode::BAD_REQUEST, "Missing credentials"),
-            Self::Config(err) => {
-                error!("server error: {}", err.to_string());
-                (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
-            },
             Self::HeaderToStr(err) => {
                 error!("server error: {}", err.to_string());
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")

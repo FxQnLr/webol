@@ -12,7 +12,7 @@ use crate::error::Error;
 pub async fn get(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<GetDevicePayload>) -> Result<Json<Value>, Error> {
     info!("add device {}", payload.id);
     let secret = headers.get("authorization");
-    if auth(secret).map_err(Error::Auth)? {
+    if auth(&state.config, secret).map_err(Error::Auth)? {
         let device = sqlx::query_as!(
             Device,
             r#"
@@ -39,7 +39,7 @@ pub struct GetDevicePayload {
 pub async fn put(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<PutDevicePayload>) -> Result<Json<Value>, Error> {
     info!("add device {} ({}, {}, {})", payload.id, payload.mac, payload.broadcast_addr, payload.ip);
     let secret = headers.get("authorization");
-    if auth(secret).map_err(Error::Auth)? {
+    if auth(&state.config, secret).map_err(Error::Auth)? {
         sqlx::query!(
             r#"
             INSERT INTO devices (id, mac, broadcast_addr, ip)
@@ -73,7 +73,7 @@ pub struct PutDeviceResponse {
 pub async fn post(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<PostDevicePayload>) -> Result<Json<Value>, Error> {
     info!("edit device {} ({}, {}, {})", payload.id, payload.mac, payload.broadcast_addr, payload.ip);
     let secret = headers.get("authorization");
-    if auth(secret).map_err(Error::Auth)? {
+    if auth(&state.config, secret).map_err(Error::Auth)? {
         let device = sqlx::query_as!(
             Device,
             r#"
