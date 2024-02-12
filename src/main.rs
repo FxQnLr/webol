@@ -1,5 +1,4 @@
 use std::env;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use axum::{Router, routing::post};
 use axum::routing::{get, put};
@@ -9,7 +8,7 @@ use time::util::local_offset;
 use tokio::sync::broadcast::{channel, Sender};
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
-use crate::config::SETTINGS;
+use crate::config::Config;
 use crate::db::init_db_pool;
 use crate::routes::device;
 use crate::routes::start::start;
@@ -47,16 +46,18 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
     let version = env!("CARGO_PKG_VERSION");
 
+    let config = Config::load()?;
+
     info!("start webol v{}", version);
 
-    let db = init_db_pool().await;
+    let db = init_db_pool(&config.database_url).await;
     sqlx::migrate!().run(&db).await.unwrap();
 
     let (tx, _) = channel(32);
 
     let ping_map: StatusMap = DashMap::new();
     
-    let shared_state = Arc::new(AppState { db, ping_send: tx, ping_map });
+    let shared_state = Arc::new(AppState { db, config: config.clone(), ping_send: tx, ping_map });
 
     let app = Router::new()
         .route("/start", post(start))
@@ -66,9 +67,9 @@ async fn main() -> color_eyre::eyre::Result<()> {
         .route("/status", get(status))
         .with_state(shared_state);
 
-    let addr = SETTINGS.get_string("serveraddr").unwrap_or("0.0.0.0:7229".to_string());
+    let addr = config.serveraddr;
     info!("start server on {}", addr);
-    let listener = tokio::net::TcpListener::bind(addr.parse::<SocketAddr>()?)
+    let listener = tokio::net::TcpListener::bind(addr)
         .await?;
     axum::serve(listener, app).await?;
 
@@ -77,6 +78,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
 pub struct AppState {
     db: PgPool,
+    config: Config,
     ping_send: Sender<BroadcastCommands>,
     ping_map: StatusMap,
 }

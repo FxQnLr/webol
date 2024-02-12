@@ -1,11 +1,25 @@
-use config::Config;
-use once_cell::sync::Lazy;
+use config::File;
+use serde::Deserialize;
 
-pub static SETTINGS: Lazy<Config> = Lazy::new(setup);
-
-fn setup() -> Config {
-    Config::builder()
-        .add_source(config::Environment::with_prefix("WEBOL").separator("_"))
-        .build()
-        .unwrap()
+#[derive(Debug, Clone, Deserialize)]
+pub struct Config {
+    pub database_url: String,
+    pub apikey: String,
+    pub serveraddr: String,
+    pub pingtimeout: i64,
 }
+
+impl Config {
+    pub fn load() -> Result<Self, config::ConfigError> {
+        let config = config::Config::builder()
+            .set_default("serveraddr", "0.0.0.0:7229")?
+            .set_default("pingtimeout", 10)?
+            .add_source(File::with_name("config.toml").required(false))
+            .add_source(File::with_name("config.dev.toml").required(false))
+            .add_source(config::Environment::with_prefix("WEBOL").separator("_"))
+            .build()?;
+
+        config.try_deserialize()
+    }
+}
+

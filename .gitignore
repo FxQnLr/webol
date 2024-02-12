@@ -11,5 +11,6 @@ target/
 
 *.sqlite*
 .env
+config.*
 
 .idea
