@@ -8,7 +8,7 @@ RUN cd /tmp && \
 FROM rust:1.76 as builder
 WORKDIR /app
 COPY . .
-RUN SQLX_OFFLINE=true cargo install --path .
+RUN cargo install --path .
 
 
 FROM gcr.io/distroless/cc
