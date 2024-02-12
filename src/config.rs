@@ -16,7 +16,7 @@ impl Config {
             .set_default("pingtimeout", 10)?
             .add_source(File::with_name("config.toml").required(false))
             .add_source(File::with_name("config.dev.toml").required(false))
-            .add_source(config::Environment::with_prefix("WEBOL").separator("_"))
+            .add_source(config::Environment::with_prefix("WEBOL").prefix_separator("_"))
             .build()?;
 
         config.try_deserialize()
