@@ -1,35 +1,32 @@
 name: check
 
-on:
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
+on: [ pull_request, workflow_dispatch ]
 
-env:
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
-  SQLX_OFFLINE: "true"
-  CARGO_TERM_COLOR: always
+nv:
+ SCCACHE_GHA_ENABLED: "true"
+ RUSTC_WRAPPER: "sccache"
+ SQLX_OFFLINE: "true"
+ CARGO_TERM_COLOR: always
 
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.3
+obs:
+ check:
+   runs-on: ubuntu-latest
+   steps:
+     - name: Run sccache-cache
+       uses: mozilla-actions/sccache-action@v0.0.3
 
-      - uses: actions/checkout@v4
+     - uses: actions/checkout@v4
 
-      - run: cargo check
-      - run: cargo clippy
+     - run: cargo check
+     - run: cargo clippy
 
-  check-release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.3
+ check-release:
+   runs-on: ubuntu-latest
+   steps:
+     - name: Run sccache-cache
+       uses: mozilla-actions/sccache-action@v0.0.3
 
-      - uses: actions/checkout@v4
+     - uses: actions/checkout@v4
 
-      - run: cargo check --release
-      - run: cargo clippy --release
+     - run: cargo check --release
+     - run: cargo clippy --release
