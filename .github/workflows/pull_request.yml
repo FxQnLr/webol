@@ -2,13 +2,13 @@ name: check
 
 on: [ pull_request, workflow_dispatch ]
 
-nv:
+env:
  SCCACHE_GHA_ENABLED: "true"
  RUSTC_WRAPPER: "sccache"
  SQLX_OFFLINE: "true"
  CARGO_TERM_COLOR: always
 
-obs:
+jobs:
  check:
    runs-on: ubuntu-latest
    steps:
