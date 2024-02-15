@@ -20,7 +20,7 @@ pub async fn start(
 ) -> Result<Json<Value>, Error> {
     info!("POST request");
     let secret = headers.get("authorization");
-    let authorized = auth(&state.config, secret)?;
+    let authorized = matches!(auth(&state.config, secret)?, crate::auth::Response::Success);
     if authorized {
         let device = sqlx::query_as!(
             Device,

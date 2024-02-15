@@ -1,4 +1,4 @@
-use crate::auth::Error as AuthError;
+use axum::http::header::ToStrError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -10,12 +10,6 @@ use tracing::error;
 pub enum Error {
     #[error("generic error")]
     Generic,
-
-    #[error("auth: {source}")]
-    Auth {
-        #[from]
-        source: AuthError,
-    },
 
     #[error("db: {source}")]
     Db {
@@ -29,6 +23,12 @@ pub enum Error {
         source: std::num::ParseIntError,
     },
 
+    #[error("header parse: {source}")]
+    ParseHeader {
+        #[from]
+        source: ToStrError,
+    },
+
     #[error("io: {source}")]
     Io {
         #[from]
@@ -40,13 +40,16 @@ impl IntoResponse for Error {
     fn into_response(self) -> Response {
         error!("{}", self.to_string());
         let (status, error_message) = match self {
-            Self::Auth { source } => source.get(),
             Self::Generic => (StatusCode::INTERNAL_SERVER_ERROR, ""),
             Self::Db { source } => {
                 error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
             }
             Self::Io { source } => {
+                error!("{source}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
+            }
+            Self::ParseHeader { source } => {
                 error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
             }
