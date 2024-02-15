@@ -12,7 +12,7 @@ use crate::error::Error;
 pub async fn get(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<GetDevicePayload>) -> Result<Json<Value>, Error> {
     info!("add device {}", payload.id);
     let secret = headers.get("authorization");
-    if auth(&state.config, secret).map_err(Error::Auth)? {
+    if auth(&state.config, secret)? {
         let device = sqlx::query_as!(
             Device,
             r#"
@@ -21,7 +21,7 @@ pub async fn get(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, 
             WHERE id = $1;
             "#,
             payload.id
-        ).fetch_one(&state.db).await.map_err(Error::DB)?;
+        ).fetch_one(&state.db).await?;
 
         debug!("got device {:?}", device);
 
@@ -39,7 +39,7 @@ pub struct GetDevicePayload {
 pub async fn put(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<PutDevicePayload>) -> Result<Json<Value>, Error> {
     info!("add device {} ({}, {}, {})", payload.id, payload.mac, payload.broadcast_addr, payload.ip);
     let secret = headers.get("authorization");
-    if auth(&state.config, secret).map_err(Error::Auth)? {
+    if auth(&state.config, secret)? {
         sqlx::query!(
             r#"
             INSERT INTO devices (id, mac, broadcast_addr, ip)
@@ -49,7 +49,7 @@ pub async fn put(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, 
             payload.mac,
             payload.broadcast_addr,
             payload.ip
-        ).execute(&state.db).await.map_err(Error::DB)?;
+        ).execute(&state.db).await?;
 
         Ok(Json(json!(PutDeviceResponse { success: true })))
     } else {
@@ -73,7 +73,7 @@ pub struct PutDeviceResponse {
 pub async fn post(State(state): State<Arc<crate::AppState>>, headers: HeaderMap, Json(payload): Json<PostDevicePayload>) -> Result<Json<Value>, Error> {
     info!("edit device {} ({}, {}, {})", payload.id, payload.mac, payload.broadcast_addr, payload.ip);
     let secret = headers.get("authorization");
-    if auth(&state.config, secret).map_err(Error::Auth)? {
+    if auth(&state.config, secret)? {
         let device = sqlx::query_as!(
             Device,
             r#"
@@ -85,7 +85,7 @@ pub async fn post(State(state): State<Arc<crate::AppState>>, headers: HeaderMap,
             payload.broadcast_addr,
             payload.ip,
             payload.id
-        ).fetch_one(&state.db).await.map_err(Error::DB)?;
+        ).fetch_one(&state.db).await?;
 
         Ok(Json(json!(device)))
     } else {

@@ -20,7 +20,7 @@ pub async fn start(
 ) -> Result<Json<Value>, Error> {
     info!("POST request");
     let secret = headers.get("authorization");
-    let authorized = auth(&state.config, secret).map_err(Error::Auth)?;
+    let authorized = auth(&state.config, secret)?;
     if authorized {
         let device = sqlx::query_as!(
             Device,
@@ -32,16 +32,15 @@ pub async fn start(
             payload.id
         )
         .fetch_one(&state.db)
-        .await
-        .map_err(Error::DB)?;
+        .await?;
 
         info!("starting {}", device.id);
 
         let bind_addr = "0.0.0.0:0";
 
         let _ = send_packet(
-            &bind_addr.parse().map_err(Error::IpParse)?,
-            &device.broadcast_addr.parse().map_err(Error::IpParse)?,
+            bind_addr,
+            &device.broadcast_addr,
             &create_buffer(&device.mac)?,
         )?;
         let dev_id = device.id.clone();

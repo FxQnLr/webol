@@ -9,7 +9,7 @@ pub fn auth(config: &Config, secret: Option<&HeaderValue>) -> Result<bool, Error
     if let Some(value) = secret {
         trace!("value exists");
         let key = &config.apikey;
-        if value.to_str().map_err(Error::HeaderToStr)? == key.as_str() {
+        if value.to_str()? == key.as_str() {
             debug!("successful auth");
             Ok(true)
         } else {
@@ -22,11 +22,17 @@ pub fn auth(config: &Config, secret: Option<&HeaderValue>) -> Result<bool, Error
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("wrong secret")]
     WrongSecret,
+    #[error("missing secret")]
     MissingSecret,
-    HeaderToStr(ToStrError)
+    #[error("parse error: {source}")]
+    HeaderToStr {
+        #[from]
+        source: ToStrError
+    }
 }
 
 impl Error {
@@ -34,8 +40,8 @@ impl Error {
         match self {
             Self::WrongSecret => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
             Self::MissingSecret => (StatusCode::BAD_REQUEST, "Missing credentials"),
-            Self::HeaderToStr(err) => {
-                error!("server error: {}", err.to_string());
+            Self::HeaderToStr { source } => {
+                error!("auth: {}", source);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
             },
         }
