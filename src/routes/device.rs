@@ -4,9 +4,11 @@ use crate::error::Error;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::Json;
+use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::sync::Arc;
+use sqlx::types::ipnetwork::IpNetwork;
+use std::{sync::Arc, str::FromStr};
 use tracing::{debug, info};
 
 pub async fn get(
@@ -14,7 +16,7 @@ pub async fn get(
     headers: HeaderMap,
     Json(payload): Json<GetDevicePayload>,
 ) -> Result<Json<Value>, Error> {
-    info!("add device {}", payload.id);
+    info!("get device {}", payload.id);
     let secret = headers.get("authorization");
     let authorized = matches!(auth(&state.config, secret)?, crate::auth::Response::Success);
     if authorized {
@@ -52,18 +54,21 @@ pub async fn put(
         "add device {} ({}, {}, {})",
         payload.id, payload.mac, payload.broadcast_addr, payload.ip
     );
+    
     let secret = headers.get("authorization");
     let authorized = matches!(auth(&state.config, secret)?, crate::auth::Response::Success);
     if authorized {
+        let ip = IpNetwork::from_str(&payload.ip)?;
+        let mac = MacAddress::from_str(&payload.mac)?;
         sqlx::query!(
             r#"
             INSERT INTO devices (id, mac, broadcast_addr, ip)
             VALUES ($1, $2, $3, $4);
             "#,
             payload.id,
-            payload.mac,
+            mac,
             payload.broadcast_addr,
-            payload.ip
+            ip
         )
         .execute(&state.db)
         .await?;
@@ -99,6 +104,8 @@ pub async fn post(
     let secret = headers.get("authorization");
     let authorized = matches!(auth(&state.config, secret)?, crate::auth::Response::Success);
     if authorized {
+        let ip = IpNetwork::from_str(&payload.ip)?;
+        let mac = MacAddress::from_str(&payload.mac)?;
         let device = sqlx::query_as!(
             Device,
             r#"
@@ -106,9 +113,9 @@ pub async fn post(
             SET mac = $1, broadcast_addr = $2, ip = $3 WHERE id = $4
             RETURNING id, mac, broadcast_addr, ip, times;
             "#,
-            payload.mac,
+            mac,
             payload.broadcast_addr,
-            payload.ip,
+            ip,
             payload.id
         )
         .fetch_one(&state.db)

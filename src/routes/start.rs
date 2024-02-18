@@ -12,7 +12,6 @@ use std::sync::Arc;
 use tracing::{debug, info};
 use uuid::Uuid;
 
-#[axum_macros::debug_handler]
 pub async fn start(
     State(state): State<Arc<crate::AppState>>,
     headers: HeaderMap,
@@ -41,45 +40,11 @@ pub async fn start(
         let _ = send_packet(
             bind_addr,
             &device.broadcast_addr,
-            &create_buffer(&device.mac)?,
+            &create_buffer(&device.mac.to_string())?,
         )?;
         let dev_id = device.id.clone();
         let uuid = if payload.ping.is_some_and(|ping| ping) {
-            let mut uuid: Option<String> = None;
-            for (key, value) in state.ping_map.clone() {
-                if value.ip == device.ip {
-                    debug!("service already exists");
-                    uuid = Some(key);
-                    break;
-                }
-            }
-            let uuid_gen = match uuid {
-                Some(u) => u,
-                None => Uuid::new_v4().to_string(),
-            };
-            let uuid_genc = uuid_gen.clone();
-
-            tokio::spawn(async move {
-                debug!("init ping service");
-                state.ping_map.insert(
-                    uuid_gen.clone(),
-                    PingValue {
-                        ip: device.ip.clone(),
-                        online: false,
-                    },
-                );
-
-                crate::services::ping::spawn(
-                    state.ping_send.clone(),
-                    &state.config,
-                    device,
-                    uuid_gen.clone(),
-                    &state.ping_map,
-                    &state.db,
-                )
-                .await;
-            });
-            Some(uuid_genc)
+            Some(setup_ping(state, device))
         } else {
             None
         };
@@ -91,6 +56,45 @@ pub async fn start(
     } else {
         Err(Error::Generic)
     }
+}
+
+fn setup_ping(state: Arc<crate::AppState>, device: Device) -> String {
+    let mut uuid: Option<String> = None;
+    for (key, value) in state.ping_map.clone() {
+        if value.ip == device.ip {
+            debug!("service already exists");
+            uuid = Some(key);
+            break;
+        }
+    }
+    let uuid_gen = match uuid {
+        Some(u) => u,
+        None => Uuid::new_v4().to_string(),
+    };
+    let uuid_ret = uuid_gen.clone();
+
+    debug!("init ping service");
+    state.ping_map.insert(
+        uuid_gen.clone(),
+        PingValue {
+            ip: device.ip,
+            online: false,
+        },
+    );
+
+    tokio::spawn(async move {
+        crate::services::ping::spawn(
+            state.ping_send.clone(),
+            &state.config,
+            device,
+            uuid_gen,
+            &state.ping_map,
+            &state.db,
+        )
+        .await;
+    });
+
+    uuid_ret
 }
 
 #[derive(Deserialize)]

@@ -6,9 +6,9 @@
     "parameters": {
       "Left": [
         "Varchar",
+        "Macaddr",
         "Varchar",
-        "Varchar",
-        "Varchar"
+        "Inet"
       ]
     },
     "nullable": []

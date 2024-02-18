@@ -2,6 +2,8 @@ use axum::http::header::ToStrError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use ::ipnetwork::IpNetworkError;
+use mac_address::MacParseError;
 use serde_json::json;
 use std::io;
 use tracing::error;
@@ -29,6 +31,18 @@ pub enum Error {
         source: ToStrError,
     },
 
+    #[error("string parse: {source}")]
+    IpParse {
+        #[from]
+        source: IpNetworkError,
+    },
+
+    #[error("mac parse: {source}")]
+    MacParse {
+        #[from]
+        source: MacParseError,
+    },
+
     #[error("io: {source}")]
     Io {
         #[from]
@@ -54,6 +68,14 @@ impl IntoResponse for Error {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
             }
             Self::ParseInt { source } => {
+                error!("{source}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
+            }
+            Self::MacParse { source } => {
+                error!("{source}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
+            }
+            Self::IpParse { source } => {
                 error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
             }
