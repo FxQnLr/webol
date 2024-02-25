@@ -1,8 +1,6 @@
-use crate::auth::auth;
 use crate::db::Device;
 use crate::error::Error;
 use axum::extract::State;
-use axum::http::HeaderMap;
 use axum::Json;
 use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
@@ -13,31 +11,24 @@ use tracing::{debug, info};
 
 pub async fn get(
     State(state): State<Arc<crate::AppState>>,
-    headers: HeaderMap,
     Json(payload): Json<GetDevicePayload>,
 ) -> Result<Json<Value>, Error> {
     info!("get device {}", payload.id);
-    let secret = headers.get("authorization");
-    let authorized = matches!(auth(&state.config, secret)?, crate::auth::Response::Success);
-    if authorized {
-        let device = sqlx::query_as!(
-            Device,
-            r#"
-            SELECT id, mac, broadcast_addr, ip, times
-            FROM devices
-            WHERE id = $1;
-            "#,
-            payload.id
-        )
-        .fetch_one(&state.db)
-        .await?;
+    let device = sqlx::query_as!(
+        Device,
+        r#"
+        SELECT id, mac, broadcast_addr, ip, times
+        FROM devices
+        WHERE id = $1;
+        "#,
+        payload.id
+    )
+    .fetch_one(&state.db)
+    .await?;
 
-        debug!("got device {:?}", device);
+    debug!("got device {:?}", device);
 
-        Ok(Json(json!(device)))
-    } else {
-        Err(Error::Generic)
-    }
+    Ok(Json(json!(device)))
 }
 
 #[derive(Deserialize)]
@@ -47,7 +38,6 @@ pub struct GetDevicePayload {
 
 pub async fn put(
     State(state): State<Arc<crate::AppState>>,
-    headers: HeaderMap,
     Json(payload): Json<PutDevicePayload>,
 ) -> Result<Json<Value>, Error> {
     info!(
@@ -55,28 +45,22 @@ pub async fn put(
         payload.id, payload.mac, payload.broadcast_addr, payload.ip
     );
     
-    let secret = headers.get("authorization");
-    let authorized = matches!(auth(&state.config, secret)?, crate::auth::Response::Success);
-    if authorized {
-        let ip = IpNetwork::from_str(&payload.ip)?;
-        let mac = MacAddress::from_str(&payload.mac)?;
-        sqlx::query!(
-            r#"
-            INSERT INTO devices (id, mac, broadcast_addr, ip)
-            VALUES ($1, $2, $3, $4);
-            "#,
-            payload.id,
-            mac,
-            payload.broadcast_addr,
-            ip
-        )
-        .execute(&state.db)
-        .await?;
+    let ip = IpNetwork::from_str(&payload.ip)?;
+    let mac = MacAddress::from_str(&payload.mac)?;
+    sqlx::query!(
+        r#"
+        INSERT INTO devices (id, mac, broadcast_addr, ip)
+        VALUES ($1, $2, $3, $4);
+        "#,
+        payload.id,
+        mac,
+        payload.broadcast_addr,
+        ip
+    )
+    .execute(&state.db)
+    .await?;
 
-        Ok(Json(json!(PutDeviceResponse { success: true })))
-    } else {
-        Err(Error::Generic)
-    }
+    Ok(Json(json!(PutDeviceResponse { success: true })))
 }
 
 #[derive(Deserialize)]
@@ -94,37 +78,30 @@ pub struct PutDeviceResponse {
 
 pub async fn post(
     State(state): State<Arc<crate::AppState>>,
-    headers: HeaderMap,
     Json(payload): Json<PostDevicePayload>,
 ) -> Result<Json<Value>, Error> {
     info!(
         "edit device {} ({}, {}, {})",
         payload.id, payload.mac, payload.broadcast_addr, payload.ip
     );
-    let secret = headers.get("authorization");
-    let authorized = matches!(auth(&state.config, secret)?, crate::auth::Response::Success);
-    if authorized {
-        let ip = IpNetwork::from_str(&payload.ip)?;
-        let mac = MacAddress::from_str(&payload.mac)?;
-        let device = sqlx::query_as!(
-            Device,
-            r#"
-            UPDATE devices
-            SET mac = $1, broadcast_addr = $2, ip = $3 WHERE id = $4
-            RETURNING id, mac, broadcast_addr, ip, times;
-            "#,
-            mac,
-            payload.broadcast_addr,
-            ip,
-            payload.id
-        )
-        .fetch_one(&state.db)
-        .await?;
+    let ip = IpNetwork::from_str(&payload.ip)?;
+    let mac = MacAddress::from_str(&payload.mac)?;
+    let device = sqlx::query_as!(
+        Device,
+        r#"
+        UPDATE devices
+        SET mac = $1, broadcast_addr = $2, ip = $3 WHERE id = $4
+        RETURNING id, mac, broadcast_addr, ip, times;
+        "#,
+        mac,
+        payload.broadcast_addr,
+        ip,
+        payload.id
+    )
+    .fetch_one(&state.db)
+    .await?;
 
-        Ok(Json(json!(device)))
-    } else {
-        Err(Error::Generic)
-    }
+    Ok(Json(json!(device)))
 }
 
 #[derive(Deserialize)]

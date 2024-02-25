@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO devices (id, mac, broadcast_addr, ip)\n        VALUES ($1, $2, $3, $4);\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Macaddr",
+        "Varchar",
+        "Inet"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "edc4ecf39512caec1076be1b2849b2530be7bcdcbe14362077b3fd47cd711c89"
+}

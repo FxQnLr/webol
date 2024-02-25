@@ -1,8 +1,8 @@
+use ::ipnetwork::IpNetworkError;
 use axum::http::header::ToStrError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use ::ipnetwork::IpNetworkError;
 use mac_address::MacParseError;
 use serde_json::json;
 use std::io;
@@ -10,9 +10,6 @@ use tracing::error;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("generic error")]
-    Generic,
-
     #[error("db: {source}")]
     Db {
         #[from]
@@ -54,7 +51,6 @@ impl IntoResponse for Error {
     fn into_response(self) -> Response {
         error!("{}", self.to_string());
         let (status, error_message) = match self {
-            Self::Generic => (StatusCode::INTERNAL_SERVER_ERROR, ""),
             Self::Db { source } => {
                 error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")

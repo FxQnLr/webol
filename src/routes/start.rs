@@ -1,10 +1,8 @@
-use crate::auth::auth;
 use crate::db::Device;
 use crate::error::Error;
 use crate::services::ping::Value as PingValue;
 use crate::wol::{create_buffer, send_packet};
 use axum::extract::State;
-use axum::http::HeaderMap;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -14,48 +12,41 @@ use uuid::Uuid;
 
 pub async fn start(
     State(state): State<Arc<crate::AppState>>,
-    headers: HeaderMap,
     Json(payload): Json<Payload>,
 ) -> Result<Json<Value>, Error> {
     info!("POST request");
-    let secret = headers.get("authorization");
-    let authorized = matches!(auth(&state.config, secret)?, crate::auth::Response::Success);
-    if authorized {
-        let device = sqlx::query_as!(
-            Device,
-            r#"
-            SELECT id, mac, broadcast_addr, ip, times
-            FROM devices
-            WHERE id = $1;
-            "#,
-            payload.id
-        )
-        .fetch_one(&state.db)
-        .await?;
+    let device = sqlx::query_as!(
+        Device,
+        r#"
+        SELECT id, mac, broadcast_addr, ip, times
+        FROM devices
+        WHERE id = $1;
+        "#,
+        payload.id
+    )
+    .fetch_one(&state.db)
+    .await?;
 
-        info!("starting {}", device.id);
+    info!("starting {}", device.id);
 
-        let bind_addr = "0.0.0.0:0";
+    let bind_addr = "0.0.0.0:0";
 
-        let _ = send_packet(
-            bind_addr,
-            &device.broadcast_addr,
-            &create_buffer(&device.mac.to_string())?,
-        )?;
-        let dev_id = device.id.clone();
-        let uuid = if payload.ping.is_some_and(|ping| ping) {
-            Some(setup_ping(state, device))
-        } else {
-            None
-        };
-        Ok(Json(json!(Response {
-            id: dev_id,
-            boot: true,
-            uuid
-        })))
+    let _ = send_packet(
+        bind_addr,
+        &device.broadcast_addr,
+        &create_buffer(&device.mac.to_string())?,
+    )?;
+    let dev_id = device.id.clone();
+    let uuid = if payload.ping.is_some_and(|ping| ping) {
+        Some(setup_ping(state, device))
     } else {
-        Err(Error::Generic)
-    }
+        None
+    };
+    Ok(Json(json!(Response {
+        id: dev_id,
+        boot: true,
+        uuid
+    })))
 }
 
 fn setup_ping(state: Arc<crate::AppState>, device: Device) -> String {
