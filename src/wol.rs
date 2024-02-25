@@ -1,4 +1,4 @@
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{ToSocketAddrs, UdpSocket};
 
 use crate::error::Error;
 
@@ -11,8 +11,8 @@ pub fn create_buffer(mac_addr: &str) -> Result<Vec<u8>, Error> {
     let mut mac = Vec::new();
     let sp = mac_addr.split(':');
     for f in sp {
-        mac.push(u8::from_str_radix(f, 16).map_err(Error::BufferParse)?);
-    };
+        mac.push(u8::from_str_radix(f, 16)?);
+    }
     let mut buf = vec![255; 6];
     for _ in 0..16 {
         for i in &mac {
@@ -23,8 +23,12 @@ pub fn create_buffer(mac_addr: &str) -> Result<Vec<u8>, Error> {
 }
 
 /// Sends a buffer on UDP broadcast
-pub fn send_packet(bind_addr: &SocketAddr, broadcast_addr: &SocketAddr, buffer: &[u8]) -> Result<usize, Error> {
-    let socket = UdpSocket::bind(bind_addr).map_err(Error::Broadcast)?;
-    socket.set_broadcast(true).map_err(Error::Broadcast)?;
-    socket.send_to(buffer, broadcast_addr).map_err(Error::Broadcast)
+pub fn send_packet<A: ToSocketAddrs>(
+    bind_addr: A,
+    broadcast_addr: A,
+    buffer: &[u8],
+) -> Result<usize, Error> {
+    let socket = UdpSocket::bind(bind_addr)?;
+    socket.set_broadcast(true)?;
+    Ok(socket.send_to(buffer, broadcast_addr)?)
 }

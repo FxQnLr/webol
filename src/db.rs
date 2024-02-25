@@ -1,13 +1,13 @@
 use serde::Serialize;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{PgPool, postgres::PgPoolOptions, types::{ipnetwork::IpNetwork, mac_address::MacAddress}};
 use tracing::{debug, info};
 
 #[derive(Serialize, Debug)]
 pub struct Device {
     pub id: String,
-    pub mac: String,
+    pub mac: MacAddress,
     pub broadcast_addr: String,
-    pub ip: String,
+    pub ip: IpNetwork,
     pub times: Option<Vec<i64>>
 }
 

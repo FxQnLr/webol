@@ -14,3 +14,6 @@ target/
 config.*
 
 .idea
+
+logs/
+*.log

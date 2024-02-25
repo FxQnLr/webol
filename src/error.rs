@@ -1,44 +1,80 @@
-use std::io;
+use ::ipnetwork::IpNetworkError;
+use axum::http::header::ToStrError;
 use axum::http::StatusCode;
-use axum::Json;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
+use mac_address::MacParseError;
 use serde_json::json;
+use std::io;
 use tracing::error;
-use crate::auth::Error as AuthError;
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
-    Generic,
-    Auth(AuthError),
-    DB(sqlx::Error),
-    IpParse(<std::net::IpAddr as std::str::FromStr>::Err),
-    BufferParse(std::num::ParseIntError),
-    Broadcast(io::Error),
+    #[error("db: {source}")]
+    Db {
+        #[from]
+        source: sqlx::Error,
+    },
+
+    #[error("buffer parse: {source}")]
+    ParseInt {
+        #[from]
+        source: std::num::ParseIntError,
+    },
+
+    #[error("header parse: {source}")]
+    ParseHeader {
+        #[from]
+        source: ToStrError,
+    },
+
+    #[error("string parse: {source}")]
+    IpParse {
+        #[from]
+        source: IpNetworkError,
+    },
+
+    #[error("mac parse: {source}")]
+    MacParse {
+        #[from]
+        source: MacParseError,
+    },
+
+    #[error("io: {source}")]
+    Io {
+        #[from]
+        source: io::Error,
+    },
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
+        error!("{}", self.to_string());
         let (status, error_message) = match self {
-            Self::Auth(err) => {
-                err.get()
-            },
-            Self::Generic => (StatusCode::INTERNAL_SERVER_ERROR, ""),
-            Self::IpParse(err) => {
-                error!("server error: {}", err.to_string());
+            Self::Db { source } => {
+                error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
-            },
-            Self::DB(err) => {
-                error!("server error: {}", err.to_string());
+            }
+            Self::Io { source } => {
+                error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
-            },
-            Self::Broadcast(err) => {
-                error!("server error: {}", err.to_string());
+            }
+            Self::ParseHeader { source } => {
+                error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
-            },
-            Self::BufferParse(err) => {
-                error!("server error: {}", err.to_string());
+            }
+            Self::ParseInt { source } => {
+                error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
-            },
+            }
+            Self::MacParse { source } => {
+                error!("{source}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
+            }
+            Self::IpParse { source } => {
+                error!("{source}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
+            }
         };
         let body = Json(json!({
             "error": error_message,

@@ -1,42 +1,44 @@
-use std::env;
-use std::sync::Arc;
-use axum::{Router, routing::post};
-use axum::routing::{get, put};
-use dashmap::DashMap;
-use sqlx::PgPool;
-use time::util::local_offset;
-use tokio::sync::broadcast::{channel, Sender};
-use tracing::{info, level_filters::LevelFilter};
-use tracing_subscriber::{EnvFilter, fmt::{self, time::LocalTime}, prelude::*};
 use crate::config::Config;
 use crate::db::init_db_pool;
 use crate::routes::device;
 use crate::routes::start::start;
 use crate::routes::status::status;
-use crate::services::ping::{BroadcastCommands, StatusMap};
+use crate::services::ping::StatusMap;
+use axum::middleware::from_fn_with_state;
+use axum::routing::{get, put};
+use axum::{routing::post, Router};
+use dashmap::DashMap;
+use services::ping::BroadcastCommand;
+use sqlx::PgPool;
+use std::env;
+use std::sync::Arc;
+use tokio::sync::broadcast::{channel, Sender};
+use tracing::{info, level_filters::LevelFilter};
+use tracing_subscriber::fmt::time::UtcTime;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-mod auth;
 mod config;
-mod routes;
-mod wol;
 mod db;
 mod error;
+mod extractors;
+mod routes;
 mod services;
+mod wol;
 
 #[tokio::main]
 async fn main() -> color_eyre::eyre::Result<()> {
-
     color_eyre::install()?;
 
-    unsafe { local_offset::set_soundness(local_offset::Soundness::Unsound); }
     let time_format =
         time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
-    let loc = LocalTime::new(time_format);
+    let loc = UtcTime::new(time_format);
+
+    let file_appender = tracing_appender::rolling::daily("logs", "webol.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::registry()
-        .with(fmt::layer()
-            .with_timer(loc)
-        )
+        .with(fmt::layer().with_writer(non_blocking).with_ansi(false))
+        .with(fmt::layer().with_timer(loc))
         .with(
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::INFO.into())
@@ -56,8 +58,13 @@ async fn main() -> color_eyre::eyre::Result<()> {
     let (tx, _) = channel(32);
 
     let ping_map: StatusMap = DashMap::new();
-    
-    let shared_state = Arc::new(AppState { db, config: config.clone(), ping_send: tx, ping_map });
+
+    let shared_state = AppState {
+        db,
+        config: config.clone(),
+        ping_send: tx,
+        ping_map,
+    };
 
     let app = Router::new()
         .route("/start", post(start))
@@ -65,20 +72,21 @@ async fn main() -> color_eyre::eyre::Result<()> {
         .route("/device", put(device::put))
         .route("/device", post(device::post))
         .route("/status", get(status))
-        .with_state(shared_state);
+        .route_layer(from_fn_with_state(shared_state.clone(), extractors::auth))
+        .with_state(Arc::new(shared_state));
 
     let addr = config.serveraddr;
     info!("start server on {}", addr);
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
 
     Ok(())
 }
 
+#[derive(Clone)]
 pub struct AppState {
     db: PgPool,
     config: Config,
-    ping_send: Sender<BroadcastCommands>,
+    ping_send: Sender<BroadcastCommand>,
     ping_map: StatusMap,
 }
