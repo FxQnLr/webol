@@ -33,7 +33,11 @@ async fn main() -> color_eyre::eyre::Result<()> {
         time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
     let loc = UtcTime::new(time_format);
 
+    let file_appender = tracing_appender::rolling::daily("logs", "webol.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
     tracing_subscriber::registry()
+        .with(fmt::layer().with_writer(non_blocking).with_ansi(false))
         .with(fmt::layer().with_timer(loc))
         .with(
             EnvFilter::builder()
