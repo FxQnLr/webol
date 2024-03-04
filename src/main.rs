@@ -11,11 +11,12 @@ use axum::{
 };
 use dashmap::DashMap;
 use sqlx::PgPool;
+use time::UtcOffset;
 use std::{env, sync::Arc};
 use tokio::sync::broadcast::{channel, Sender};
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{
-    fmt::{self, time::UtcTime},
+    fmt::{self, time::OffsetTime},
     prelude::*,
     EnvFilter,
 };
@@ -77,16 +78,18 @@ impl Modify for SecurityAddon {
 async fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
 
+    let config = Config::load()?;
+
     let time_format =
         time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
-    let loc = UtcTime::new(time_format);
+    let time = OffsetTime::new(UtcOffset::from_hms(config.timeoffset, 0, 0)?, time_format);
 
     let file_appender = tracing_appender::rolling::daily("logs", "webol.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::registry()
         .with(fmt::layer().with_writer(non_blocking).with_ansi(false))
-        .with(fmt::layer().with_timer(loc))
+        .with(fmt::layer().with_timer(time))
         .with(
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::INFO.into())
@@ -95,8 +98,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
         .init();
 
     let version = env!("CARGO_PKG_VERSION");
-
-    let config = Config::load()?;
 
     info!("start webol v{}", version);
 
