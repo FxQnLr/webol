@@ -1,6 +1,6 @@
 [package]
 name = "webol"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -21,6 +21,8 @@ uuid = { version = "1.6", features = ["v4", "fast-rng"] }
 dashmap = "5.5"
 color-eyre = "0.6"
 thiserror = "1.0"
-ipnetwork = "0.20.0"
-mac_address = { version = "1.1.5", features = ["serde"] }
+ipnetwork = "0.20"
+mac_address = { version = "1.1", features = ["serde"] }
 tracing-appender = "0.2.3"
+utoipa = { version = "4.2", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "6.0", features = ["axum"] }

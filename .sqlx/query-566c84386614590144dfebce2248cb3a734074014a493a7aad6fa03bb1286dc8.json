@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO devices (id, mac, broadcast_addr, ip)\n        VALUES ($1, $2, $3, $4)\n        RETURNING id, mac, broadcast_addr, ip, times;\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "mac",
+        "type_info": "Macaddr"
+      },
+      {
+        "ordinal": 2,
+        "name": "broadcast_addr",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "ip",
+        "type_info": "Inet"
+      },
+      {
+        "ordinal": 4,
+        "name": "times",
+        "type_info": "Int8Array"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Macaddr",
+        "Varchar",
+        "Inet"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "566c84386614590144dfebce2248cb3a734074014a493a7aad6fa03bb1286dc8"
+}

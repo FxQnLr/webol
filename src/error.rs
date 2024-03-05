@@ -5,10 +5,11 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use mac_address::MacParseError;
 use serde_json::json;
+use utoipa::ToSchema;
 use std::io;
 use tracing::error;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, ToSchema)]
 pub enum Error {
     #[error("db: {source}")]
     Db {

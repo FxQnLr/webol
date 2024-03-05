@@ -6,10 +6,20 @@ use axum::extract::State;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use utoipa::ToSchema;
 use std::sync::Arc;
 use tracing::{debug, info};
 use uuid::Uuid;
 
+#[utoipa::path(
+    post,
+    path = "/start",
+    request_body = Payload,
+    responses(
+        (status = 200, description = "List matching todos by query", body = [Response])
+    ),
+    security(("api_key" = []))
+)]
 pub async fn start(
     State(state): State<Arc<crate::AppState>>,
     Json(payload): Json<Payload>,
@@ -88,14 +98,14 @@ fn setup_ping(state: Arc<crate::AppState>, device: Device) -> String {
     uuid_ret
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct Payload {
     id: String,
     ping: Option<bool>,
 }
 
-#[derive(Serialize)]
-struct Response {
+#[derive(Serialize, ToSchema)]
+pub struct Response {
     id: String,
     boot: bool,
     uuid: Option<String>,

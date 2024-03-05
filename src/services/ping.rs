@@ -49,22 +49,27 @@ pub async fn spawn(
         };
     }
 
+    trace!(?msg);
+
     let msg = msg.expect("fatal error");
 
     let _ = tx.send(msg.clone());
-    if let BroadcastCommands::Success = msg.command {
-        sqlx::query!(
-            r#"
-            UPDATE devices
-            SET times = array_append(times, $1)
-            WHERE id = $2;
-            "#,
-            timer.elapsed().whole_seconds(),
-            device.id
-        )
-        .execute(db)
-        .await
-        .unwrap();
+    if msg.command == BroadcastCommands::Success {
+        if timer.elapsed().whole_seconds() > config.pingthreshold {
+            sqlx::query!(
+                r#"
+                UPDATE devices
+                SET times = array_append(times, $1)
+                WHERE id = $2;
+                "#,
+                timer.elapsed().whole_seconds(),
+                device.id
+            )
+            .execute(db)
+            .await
+            .unwrap();
+        }
+
         ping_map.insert(
             uuid.clone(),
             Value {

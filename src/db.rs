@@ -1,6 +1,7 @@
 use serde::Serialize;
 use sqlx::{PgPool, postgres::PgPoolOptions, types::{ipnetwork::IpNetwork, mac_address::MacAddress}};
 use tracing::{debug, info};
+use utoipa::ToSchema;
 
 #[derive(Serialize, Debug)]
 pub struct Device {
@@ -8,6 +9,16 @@ pub struct Device {
     pub mac: MacAddress,
     pub broadcast_addr: String,
     pub ip: IpNetwork,
+    pub times: Option<Vec<i64>>
+}
+
+#[derive(ToSchema)]
+#[schema(as = Device)]
+pub struct DeviceSchema {
+    pub id: String,
+    pub mac: String,
+    pub broadcast_addr: String,
+    pub ip: String,
     pub times: Option<Vec<i64>>
 }
 
