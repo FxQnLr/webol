@@ -18,7 +18,7 @@ use uuid::Uuid;
     responses(
         (status = 200, description = "List matching todos by query", body = [Response])
     ),
-    security(("api_key" = []))
+    security((), ("api_key" = []))
 )]
 #[deprecated]
 pub async fn start_payload(
@@ -70,11 +70,37 @@ pub async fn start_payload(
     params(
         ("id" = String, Path, description = "Device id")
     ),
-    security(("api_key" = []))
+    security((), ("api_key" = []))
 )]
-pub async fn start(
+pub async fn post(
     State(state): State<Arc<crate::AppState>>,
     Path(id): Path<String>,
+    payload: Option<Json<Payload>>,
+) -> Result<Json<Value>, Error> {
+    send_wol(state, &id, payload).await
+}
+
+#[utoipa::path(
+    get,
+    path = "/start/{id}",
+    responses(
+        (status = 200, description = "Start the device with the given id", body = [Response])
+    ),
+    params(
+        ("id" = String, Path, description = "Device id")
+    ),
+    security((), ("api_key" = []))
+)]
+pub async fn get(
+    State(state): State<Arc<crate::AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<Value>, Error> {
+    send_wol(state, &id, None).await
+}
+
+async fn send_wol(
+    state: Arc<crate::AppState>,
+    id: &str,
     payload: Option<Json<Payload>>,
 ) -> Result<Json<Value>, Error> {
     info!("Start request for {id}");

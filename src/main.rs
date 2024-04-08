@@ -37,7 +37,8 @@ mod wol;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        start::start,
+        start::post,
+        start::get,
         start::start_payload,
         device::get,
         device::get_payload,
@@ -119,13 +120,14 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
     let app = Router::new()
         .route("/start", post(start::start_payload))
-        .route("/start/:id", post(start::start))
+        .route("/start/:id", post(start::post).get(start::get))
         .route(
             "/device",
             post(device::post).get(device::get_payload).put(device::put),
         )
         .route("/device/:id", get(device::get))
         .route("/status", get(status::status))
+        // TODO: Don't load on `None` Auth
         .route_layer(from_fn_with_state(shared_state.clone(), auth::auth))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(Arc::new(shared_state));

@@ -23,11 +23,13 @@ pub async fn auth(
     match auth.method {
         Methods::Key => {
             if let Some(secret) = headers.get("authorization") {
-                if !(auth.secret.as_str() == secret) { return Err(StatusCode::UNAUTHORIZED); };
+                if auth.secret.as_str() != secret {
+                    return Err(StatusCode::UNAUTHORIZED);
+                };
                 let response = next.run(request).await;
                 Ok(response)
             } else {
-                return Err(StatusCode::UNAUTHORIZED);
+                Err(StatusCode::UNAUTHORIZED)
             }
         }
         Methods::None => Ok(next.run(request).await),
