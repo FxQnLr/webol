@@ -20,7 +20,7 @@ use utoipa::ToSchema;
     security(("api_key" = []))
 )]
 #[deprecated]
-pub async fn get(
+pub async fn get_payload(
     State(state): State<Arc<crate::AppState>>,
     Json(payload): Json<GetDevicePayload>,
 ) -> Result<Json<Value>, Error> {
@@ -53,7 +53,7 @@ pub async fn get(
     ),
     security(("api_key" = []))
 )]
-pub async fn get_path(
+pub async fn get(
     State(state): State<Arc<crate::AppState>>,
     Path(path): Path<String>,
 ) -> Result<Json<Value>, Error> {

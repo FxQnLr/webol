@@ -11,8 +11,8 @@ use axum::{
 };
 use dashmap::DashMap;
 use sqlx::PgPool;
-use time::UtcOffset;
 use std::{env, sync::Arc};
+use time::UtcOffset;
 use tokio::sync::broadcast::{channel, Sender};
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{
@@ -38,13 +38,15 @@ mod wol;
 #[openapi(
     paths(
         start::start,
+        start::start_payload,
         device::get,
-        device::get_path,
+        device::get_payload,
         device::post,
         device::put,
     ),
     components(
         schemas(
+            start::PayloadOld,
             start::Payload,
             start::Response,
             device::PutDevicePayload,
@@ -116,12 +118,13 @@ async fn main() -> color_eyre::eyre::Result<()> {
     };
 
     let app = Router::new()
-        .route("/start", post(start::start))
+        .route("/start", post(start::start_payload))
+        .route("/start/:id", post(start::start))
         .route(
             "/device",
-            post(device::post).get(device::get).put(device::put),
+            post(device::post).get(device::get_payload).put(device::put),
         )
-        .route("/device/:id", get(device::get_path))
+        .route("/device/:id", get(device::get))
         .route("/status", get(status::status))
         .route_layer(from_fn_with_state(shared_state.clone(), extractors::auth))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
