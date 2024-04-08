@@ -63,7 +63,7 @@ pub async fn start_payload(
 #[utoipa::path(
     post,
     path = "/start/{id}",
-    request_body = Payload,
+    request_body = Option<Payload>,
     responses(
         (status = 200, description = "Start the device with the given id", body = [Response])
     ),

@@ -1,14 +1,22 @@
 use config::File;
 use serde::Deserialize;
 
+use crate::auth;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub database_url: String,
-    pub apikey: String,
     pub serveraddr: String,
     pub pingtimeout: i64,
     pub pingthreshold: i64,
     pub timeoffset: i8,
+    pub auth: Auth,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Auth {
+    pub method: auth::Methods,
+    pub secret: String,
 }
 
 impl Config {

@@ -29,7 +29,7 @@ use utoipa_swagger_ui::SwaggerUi;
 mod config;
 mod db;
 mod error;
-mod extractors;
+mod auth;
 mod routes;
 mod services;
 mod wol;
@@ -126,7 +126,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
         )
         .route("/device/:id", get(device::get))
         .route("/status", get(status::status))
-        .route_layer(from_fn_with_state(shared_state.clone(), extractors::auth))
+        .route_layer(from_fn_with_state(shared_state.clone(), auth::auth))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(Arc::new(shared_state));
 
