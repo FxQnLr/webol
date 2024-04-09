@@ -11,8 +11,8 @@ use axum::{
 };
 use dashmap::DashMap;
 use sqlx::PgPool;
-use time::UtcOffset;
 use std::{env, sync::Arc};
+use time::UtcOffset;
 use tokio::sync::broadcast::{channel, Sender};
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{
@@ -29,7 +29,7 @@ use utoipa_swagger_ui::SwaggerUi;
 mod config;
 mod db;
 mod error;
-mod extractors;
+mod auth;
 mod routes;
 mod services;
 mod wol;
@@ -37,19 +37,21 @@ mod wol;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        start::start,
+        start::post,
+        start::get,
+        start::start_payload,
         device::get,
-        device::get_path,
+        device::get_payload,
         device::post,
         device::put,
     ),
     components(
         schemas(
+            start::PayloadOld,
             start::Payload,
             start::Response,
-            device::PutDevicePayload,
+            device::DevicePayload,
             device::GetDevicePayload,
-            device::PostDevicePayload,
             db::DeviceSchema,
         )
     ),
@@ -116,14 +118,16 @@ async fn main() -> color_eyre::eyre::Result<()> {
     };
 
     let app = Router::new()
-        .route("/start", post(start::start))
+        .route("/start", post(start::start_payload))
+        .route("/start/:id", post(start::post).get(start::get))
         .route(
             "/device",
-            post(device::post).get(device::get).put(device::put),
+            post(device::post).get(device::get_payload).put(device::put),
         )
-        .route("/device/:id", get(device::get_path))
+        .route("/device/:id", get(device::get))
         .route("/status", get(status::status))
-        .route_layer(from_fn_with_state(shared_state.clone(), extractors::auth))
+        // TODO: Don't load on `None` Auth
+        .route_layer(from_fn_with_state(shared_state.clone(), auth::auth))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(Arc::new(shared_state));
 
