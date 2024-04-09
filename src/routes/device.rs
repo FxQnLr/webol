@@ -1,46 +1,14 @@
-use crate::db::Device;
 use crate::error::Error;
-use axum::extract::{Path, State};
+use crate::storage::Device;
+use axum::extract::Path;
 use axum::Json;
+use ipnetwork::IpNetwork;
 use mac_address::MacAddress;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use sqlx::types::ipnetwork::IpNetwork;
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 use tracing::{debug, info};
 use utoipa::ToSchema;
-
-#[utoipa::path(
-    get,
-    path = "/device",
-    request_body = GetDevicePayload,
-    responses(
-        (status = 200, description = "Get `Device` information", body = [Device])
-    ),
-    security(("api_key" = []))
-)]
-#[deprecated]
-pub async fn get_payload(
-    State(state): State<Arc<crate::AppState>>,
-    Json(payload): Json<GetDevicePayload>,
-) -> Result<Json<Value>, Error> {
-    info!("get device {}", payload.id);
-    let device = sqlx::query_as!(
-        Device,
-        r#"
-        SELECT id, mac, broadcast_addr, ip, times
-        FROM devices
-        WHERE id = $1;
-        "#,
-        payload.id
-    )
-    .fetch_one(&state.db)
-    .await?;
-
-    debug!("got device {:?}", device);
-
-    Ok(Json(json!(device)))
-}
 
 #[utoipa::path(
     get,
@@ -53,22 +21,10 @@ pub async fn get_payload(
     ),
     security((), ("api_key" = []))
 )]
-pub async fn get(
-    State(state): State<Arc<crate::AppState>>,
-    Path(path): Path<String>,
-) -> Result<Json<Value>, Error> {
-    info!("get device from path {}", path);
-    let device = sqlx::query_as!(
-        Device,
-        r#"
-        SELECT id, mac, broadcast_addr, ip, times
-        FROM devices
-        WHERE id = $1;
-        "#,
-        path
-    )
-    .fetch_one(&state.db)
-    .await?;
+pub async fn get(Path(id): Path<String>) -> Result<Json<Value>, Error> {
+    info!("get device from path {}", id);
+
+    let device = Device::read(&id)?;
 
     debug!("got device {:?}", device);
 
@@ -76,13 +32,7 @@ pub async fn get(
 }
 
 #[derive(Deserialize, ToSchema)]
-#[deprecated]
-pub struct GetDevicePayload {
-    id: String,
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct DevicePayload {
+pub struct Payload {
     id: String,
     mac: String,
     broadcast_addr: String,
@@ -92,15 +42,14 @@ pub struct DevicePayload {
 #[utoipa::path(
     put,
     path = "/device",
-    request_body = DevicePayload,
+    request_body = Payload,
     responses(
         (status = 200, description = "add device to storage", body = [DeviceSchema])
     ),
     security((), ("api_key" = []))
 )]
 pub async fn put(
-    State(state): State<Arc<crate::AppState>>,
-    Json(payload): Json<DevicePayload>,
+    Json(payload): Json<Payload>,
 ) -> Result<Json<Value>, Error> {
     info!(
         "add device {} ({}, {}, {})",
@@ -109,20 +58,14 @@ pub async fn put(
 
     let ip = IpNetwork::from_str(&payload.ip)?;
     let mac = MacAddress::from_str(&payload.mac)?;
-    let device = sqlx::query_as!(
-        Device,
-        r#"
-        INSERT INTO devices (id, mac, broadcast_addr, ip)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, mac, broadcast_addr, ip, times;
-        "#,
-        payload.id,
+    let device = Device {
+        id: payload.id,
         mac,
-        payload.broadcast_addr,
-        ip
-    )
-    .fetch_one(&state.db)
-    .await?;
+        broadcast_addr: payload.broadcast_addr,
+        ip,
+        times: None,
+    };
+    device.write()?;
 
     Ok(Json(json!(device)))
 }
@@ -130,15 +73,14 @@ pub async fn put(
 #[utoipa::path(
     post,
     path = "/device",
-    request_body = DevicePayload,
+    request_body = Payload,
     responses(
         (status = 200, description = "update device in storage", body = [DeviceSchema])
     ),
     security((), ("api_key" = []))
 )]
 pub async fn post(
-    State(state): State<Arc<crate::AppState>>,
-    Json(payload): Json<DevicePayload>,
+    Json(payload): Json<Payload>,
 ) -> Result<Json<Value>, Error> {
     info!(
         "edit device {} ({}, {}, {})",
@@ -146,20 +88,16 @@ pub async fn post(
     );
     let ip = IpNetwork::from_str(&payload.ip)?;
     let mac = MacAddress::from_str(&payload.mac)?;
-    let device = sqlx::query_as!(
-        Device,
-        r#"
-        UPDATE devices
-        SET mac = $1, broadcast_addr = $2, ip = $3 WHERE id = $4
-        RETURNING id, mac, broadcast_addr, ip, times;
-        "#,
+    let times = Device::read(&payload.id)?.times;
+
+    let device = Device {
+        id: payload.id,
         mac,
-        payload.broadcast_addr,
+        broadcast_addr: payload.broadcast_addr,
         ip,
-        payload.id
-    )
-    .fetch_one(&state.db)
-    .await?;
+        times,
+    };
+    device.write()?;
 
     Ok(Json(json!(device)))
 }

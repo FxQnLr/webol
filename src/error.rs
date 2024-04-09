@@ -11,10 +11,10 @@ use tracing::error;
 
 #[derive(Debug, thiserror::Error, ToSchema)]
 pub enum Error {
-    #[error("db: {source}")]
-    Db {
+    #[error("json: {source}")]
+    Json {
         #[from]
-        source: sqlx::Error,
+        source: serde_json::Error,
     },
 
     #[error("buffer parse: {source}")]
@@ -52,7 +52,7 @@ impl IntoResponse for Error {
     fn into_response(self) -> Response {
         error!("{}", self.to_string());
         let (status, error_message) = match self {
-            Self::Db { source } => {
+            Self::Json { source } => {
                 error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
             }

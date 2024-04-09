@@ -1,8 +1,7 @@
 use crate::config::Config;
-use crate::db::Device;
+use crate::storage::Device;
 use dashmap::DashMap;
 use ipnetwork::IpNetwork;
-use sqlx::PgPool;
 use std::fmt::Display;
 use time::{Duration, Instant};
 use tokio::sync::broadcast::Sender;
@@ -13,6 +12,7 @@ pub type StatusMap = DashMap<String, Value>;
 #[derive(Debug, Clone)]
 pub struct Value {
     pub ip: IpNetwork,
+    pub eta: i64,
     pub online: bool,
 }
 
@@ -22,7 +22,6 @@ pub async fn spawn(
     device: Device,
     uuid: String,
     ping_map: &StatusMap,
-    db: &PgPool,
 ) {
     let timer = Instant::now();
     let payload = [0; 8];
@@ -56,27 +55,29 @@ pub async fn spawn(
     let _ = tx.send(msg.clone());
     if msg.command == BroadcastCommands::Success {
         if timer.elapsed().whole_seconds() > config.pingthreshold {
-            sqlx::query!(
-                r#"
-                UPDATE devices
-                SET times = array_append(times, $1)
-                WHERE id = $2;
-                "#,
-                timer.elapsed().whole_seconds(),
-                device.id
-            )
-            .execute(db)
-            .await
-            .unwrap();
+            let newtimes = if let Some(mut oldtimes) = device.times {
+                oldtimes.push(timer.elapsed().whole_seconds());
+                oldtimes
+            } else {
+                vec![timer.elapsed().whole_seconds()]
+            };
+
+            let updatedev = Device {
+                id: device.id,
+                mac: device.mac,
+                broadcast_addr: device.broadcast_addr,
+                ip: device.ip,
+                times: Some(newtimes),
+            };
+            updatedev.write().unwrap();
         }
 
-        ping_map.insert(
-            uuid.clone(),
-            Value {
-                ip: device.ip,
-                online: true,
-            },
-        );
+        ping_map.alter(&uuid, |_, v| Value {
+            ip: v.ip,
+            eta: v.eta,
+            online: true,
+        });
+
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
     }
     trace!("remove {} from ping_map", uuid);
