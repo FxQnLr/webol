@@ -16,7 +16,7 @@ use uuid::Uuid;
     path = "/start",
     request_body = PayloadOld,
     responses(
-        (status = 200, description = "List matching todos by query", body = [Response])
+        (status = 200, description = "DEP", body = [Response])
     ),
     security((), ("api_key" = []))
 )]
@@ -65,10 +65,10 @@ pub async fn start_payload(
     path = "/start/{id}",
     request_body = Option<Payload>,
     responses(
-        (status = 200, description = "Start the device with the given id", body = [Response])
+        (status = 200, description = "start the device with the given id", body = [Response])
     ),
     params(
-        ("id" = String, Path, description = "Device id")
+        ("id" = String, Path, description = "device id")
     ),
     security((), ("api_key" = []))
 )]
@@ -84,10 +84,10 @@ pub async fn post(
     get,
     path = "/start/{id}",
     responses(
-        (status = 200, description = "Start the device with the given id", body = [Response])
+        (status = 200, description = "start the device with the given id", body = [Response])
     ),
     params(
-        ("id" = String, Path, description = "Device id")
+        ("id" = String, Path, description = "device id")
     ),
     security((), ("api_key" = []))
 )]

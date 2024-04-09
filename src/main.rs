@@ -50,9 +50,8 @@ mod wol;
             start::PayloadOld,
             start::Payload,
             start::Response,
-            device::PutDevicePayload,
+            device::DevicePayload,
             device::GetDevicePayload,
-            device::PostDevicePayload,
             db::DeviceSchema,
         )
     ),

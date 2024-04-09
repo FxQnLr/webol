@@ -49,9 +49,9 @@ pub async fn get_payload(
         (status = 200, description = "Get `Device` information", body = [Device])
     ),
     params(
-        ("id" = String, Path, description = "Device id")
+        ("id" = String, Path, description = "device id")
     ),
-    security(("api_key" = []))
+    security((), ("api_key" = []))
 )]
 pub async fn get(
     State(state): State<Arc<crate::AppState>>,
@@ -76,22 +76,31 @@ pub async fn get(
 }
 
 #[derive(Deserialize, ToSchema)]
+#[deprecated]
 pub struct GetDevicePayload {
     id: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct DevicePayload {
+    id: String,
+    mac: String,
+    broadcast_addr: String,
+    ip: String,
 }
 
 #[utoipa::path(
     put,
     path = "/device",
-    request_body = PutDevicePayload,
+    request_body = DevicePayload,
     responses(
-        (status = 200, description = "List matching todos by query", body = [DeviceSchema])
+        (status = 200, description = "add device to storage", body = [DeviceSchema])
     ),
-    security(("api_key" = []))
+    security((), ("api_key" = []))
 )]
 pub async fn put(
     State(state): State<Arc<crate::AppState>>,
-    Json(payload): Json<PutDevicePayload>,
+    Json(payload): Json<DevicePayload>,
 ) -> Result<Json<Value>, Error> {
     info!(
         "add device {} ({}, {}, {})",
@@ -118,26 +127,18 @@ pub async fn put(
     Ok(Json(json!(device)))
 }
 
-#[derive(Deserialize, ToSchema)]
-pub struct PutDevicePayload {
-    id: String,
-    mac: String,
-    broadcast_addr: String,
-    ip: String,
-}
-
 #[utoipa::path(
     post,
     path = "/device",
-    request_body = PostDevicePayload,
+    request_body = DevicePayload,
     responses(
-        (status = 200, description = "List matching todos by query", body = [DeviceSchema])
+        (status = 200, description = "update device in storage", body = [DeviceSchema])
     ),
-    security(("api_key" = []))
+    security((), ("api_key" = []))
 )]
 pub async fn post(
     State(state): State<Arc<crate::AppState>>,
-    Json(payload): Json<PostDevicePayload>,
+    Json(payload): Json<DevicePayload>,
 ) -> Result<Json<Value>, Error> {
     info!(
         "edit device {} ({}, {}, {})",
@@ -161,12 +162,4 @@ pub async fn post(
     .await?;
 
     Ok(Json(json!(device)))
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct PostDevicePayload {
-    id: String,
-    mac: String,
-    broadcast_addr: String,
-    ip: String,
 }
