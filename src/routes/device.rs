@@ -32,7 +32,7 @@ pub async fn get(Path(id): Path<String>) -> Result<Json<Value>, Error> {
 }
 
 #[derive(Deserialize, ToSchema)]
-pub struct Payload {
+pub struct DPayload {
     id: String,
     mac: String,
     broadcast_addr: String,
@@ -42,14 +42,14 @@ pub struct Payload {
 #[utoipa::path(
     put,
     path = "/device",
-    request_body = Payload,
+    request_body = DPayload,
     responses(
         (status = 200, description = "add device to storage", body = [DeviceSchema])
     ),
     security((), ("api_key" = []))
 )]
 pub async fn put(
-    Json(payload): Json<Payload>,
+    Json(payload): Json<DPayload>,
 ) -> Result<Json<Value>, Error> {
     info!(
         "add device {} ({}, {}, {})",
@@ -73,14 +73,14 @@ pub async fn put(
 #[utoipa::path(
     post,
     path = "/device",
-    request_body = Payload,
+    request_body = DPayload,
     responses(
         (status = 200, description = "update device in storage", body = [DeviceSchema])
     ),
     security((), ("api_key" = []))
 )]
 pub async fn post(
-    Json(payload): Json<Payload>,
+    Json(payload): Json<DPayload>,
 ) -> Result<Json<Value>, Error> {
     info!(
         "edit device {} ({}, {}, {})",

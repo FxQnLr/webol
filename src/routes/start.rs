@@ -14,7 +14,7 @@ use uuid::Uuid;
 #[utoipa::path(
     post,
     path = "/start/{id}",
-    request_body = Option<Payload>,
+    request_body = Option<SPayload>,
     responses(
         (status = 200, description = "start the device with the given id", body = [Response])
     ),
@@ -26,7 +26,7 @@ use uuid::Uuid;
 pub async fn post(
     State(state): State<Arc<crate::AppState>>,
     Path(id): Path<String>,
-    payload: Option<Json<Payload>>,
+    payload: Option<Json<SPayload>>,
 ) -> Result<Json<Value>, Error> {
     send_wol(state, &id, payload)
 }
@@ -52,7 +52,7 @@ pub async fn get(
 fn send_wol(
     state: Arc<crate::AppState>,
     id: &str,
-    payload: Option<Json<Payload>>,
+    payload: Option<Json<SPayload>>,
 ) -> Result<Json<Value>, Error> {
     info!("start request for {id}");
     let device = Device::read(id)?;
@@ -134,7 +134,7 @@ fn get_eta(times: Option<Vec<i64>>) -> i64 {
 }
 
 #[derive(Deserialize, ToSchema)]
-pub struct Payload {
+pub struct SPayload {
     ping: Option<bool>,
 }
 

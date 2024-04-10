@@ -41,9 +41,9 @@ mod wol;
     ),
     components(
         schemas(
-            start::Payload,
+            start::SPayload,
             start::Response,
-            device::Payload,
+            device::DPayload,
             storage::DeviceSchema,
         )
     ),
