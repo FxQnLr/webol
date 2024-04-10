@@ -10,7 +10,7 @@ use dashmap::DashMap;
 use std::{env, sync::Arc};
 use time::UtcOffset;
 use tokio::sync::broadcast::{channel, Sender};
-use tracing::{info, level_filters::LevelFilter};
+use tracing::{info, level_filters::LevelFilter, trace};
 use tracing_subscriber::{
     fmt::{self, time::OffsetTime},
     prelude::*,
@@ -89,11 +89,12 @@ async fn main() -> color_eyre::eyre::Result<()> {
                 .from_env_lossy(),
         )
         .init();
+    trace!("logging initialized");
 
     Device::setup()?;
 
     let version = env!("CARGO_PKG_VERSION");
-    info!("start webol v{}", version);
+    info!(?version, "start webol");
 
     let (tx, _) = channel(32);
 

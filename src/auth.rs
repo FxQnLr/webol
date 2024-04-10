@@ -6,6 +6,7 @@ use axum::{
     response::Response,
 };
 use serde::Deserialize;
+use tracing::trace;
 
 #[derive(Debug, Clone, Deserialize)]
 pub enum Methods {
@@ -20,15 +21,19 @@ pub async fn auth(
     next: Next,
 ) -> Result<Response, StatusCode> {
     let auth = state.config.auth;
+    trace!(?auth.method, "auth request");
     match auth.method {
         Methods::Key => {
             if let Some(secret) = headers.get("authorization") {
                 if auth.secret.as_str() != secret {
+                    trace!("auth failed, unknown secret");
                     return Err(StatusCode::UNAUTHORIZED);
                 };
+                trace!("auth successfull");
                 let response = next.run(request).await;
                 Ok(response)
             } else {
+                trace!("auth failed, no secret");
                 Err(StatusCode::UNAUTHORIZED)
             }
         }
