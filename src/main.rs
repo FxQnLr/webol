@@ -68,7 +68,6 @@ impl Modify for SecurityAddon {
 }
 
 #[tokio::main]
-#[allow(deprecated)]
 async fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
 

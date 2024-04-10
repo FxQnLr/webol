@@ -25,6 +25,7 @@ impl Config {
             .set_default("pingtimeout", 10)?
             .set_default("pingthreshold", 1)?
             .set_default("timeoffset", 0)?
+            .set_default("auth.method", "none")?
             .set_default("auth.secret", "")?
             .add_source(File::with_name("config.toml").required(false))
             .add_source(File::with_name("config.dev.toml").required(false))

@@ -47,3 +47,4 @@ jobs:
           tags: |
             ghcr.io/fxqnlr/webol:dev-latest
             ghcr.io/fxqnlr/webol:dev-${{ github.run_number }}
+            ghcr.io/fxqnlr/webol:${{ env.CARGO_PKG_VERSION }}
