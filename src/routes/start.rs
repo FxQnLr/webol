@@ -1,7 +1,7 @@
 use crate::storage::Device;
 use crate::error::Error;
 use crate::services::ping::Value as PingValue;
-use crate::wol::send_packet;
+use crate::wol::{create_buffer, send_packet};
 use axum::extract::{Path, State};
 use axum::Json;
 use serde::{Deserialize, Serialize};
@@ -61,10 +61,10 @@ fn send_wol(
 
     let bind_addr = "0.0.0.0:0";
 
-    let _ = send_packet(
+    send_packet(
         bind_addr,
         &device.broadcast_addr.to_string(),
-        &device.mac.bytes()
+        &create_buffer(&device.mac.to_string())?
     )?;
     let dev_id = device.id.clone();
     let uuid = if let Some(pl) = payload {
