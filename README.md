@@ -24,5 +24,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./devices:/devices
+      - ./logs:/logs
     network_mode: host
 ```
