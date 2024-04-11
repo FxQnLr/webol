@@ -5,7 +5,6 @@ use crate::auth;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
-    pub database_url: String,
     pub serveraddr: String,
     pub pingtimeout: i64,
     pub pingthreshold: i64,
@@ -26,9 +25,11 @@ impl Config {
             .set_default("pingtimeout", 10)?
             .set_default("pingthreshold", 1)?
             .set_default("timeoffset", 0)?
+            .set_default("auth.method", "none")?
+            .set_default("auth.secret", "")?
             .add_source(File::with_name("config.toml").required(false))
             .add_source(File::with_name("config.dev.toml").required(false))
-            .add_source(config::Environment::with_prefix("WEBOL").prefix_separator("_"))
+            .add_source(config::Environment::with_prefix("WEBOL").separator("_"))
             .build()?;
 
         config.try_deserialize()

@@ -1,7 +1,7 @@
-use crate::db::Device;
+use crate::storage::Device;
 use crate::error::Error;
 use crate::services::ping::Value as PingValue;
-use crate::wol::{create_buffer, send_packet};
+use crate::wol::send_packet;
 use axum::extract::{Path, State};
 use axum::Json;
 use serde::{Deserialize, Serialize};
@@ -13,57 +13,8 @@ use uuid::Uuid;
 
 #[utoipa::path(
     post,
-    path = "/start",
-    request_body = PayloadOld,
-    responses(
-        (status = 200, description = "DEP", body = [Response])
-    ),
-    security((), ("api_key" = []))
-)]
-#[deprecated]
-pub async fn start_payload(
-    State(state): State<Arc<crate::AppState>>,
-    Json(payload): Json<PayloadOld>,
-) -> Result<Json<Value>, Error> {
-    info!("POST request");
-    let device = sqlx::query_as!(
-        Device,
-        r#"
-        SELECT id, mac, broadcast_addr, ip, times
-        FROM devices
-        WHERE id = $1;
-        "#,
-        payload.id
-    )
-    .fetch_one(&state.db)
-    .await?;
-
-    info!("starting {}", device.id);
-
-    let bind_addr = "0.0.0.0:0";
-
-    let _ = send_packet(
-        bind_addr,
-        &device.broadcast_addr,
-        &create_buffer(&device.mac.to_string())?,
-    )?;
-    let dev_id = device.id.clone();
-    let uuid = if payload.ping.is_some_and(|ping| ping) {
-        Some(setup_ping(state, device))
-    } else {
-        None
-    };
-    Ok(Json(json!(Response {
-        id: dev_id,
-        boot: true,
-        uuid
-    })))
-}
-
-#[utoipa::path(
-    post,
     path = "/start/{id}",
-    request_body = Option<Payload>,
+    request_body = Option<SPayload>,
     responses(
         (status = 200, description = "start the device with the given id", body = [Response])
     ),
@@ -75,9 +26,9 @@ pub async fn start_payload(
 pub async fn post(
     State(state): State<Arc<crate::AppState>>,
     Path(id): Path<String>,
-    payload: Option<Json<Payload>>,
+    payload: Option<Json<SPayload>>,
 ) -> Result<Json<Value>, Error> {
-    send_wol(state, &id, payload).await
+    send_wol(state, &id, payload)
 }
 
 #[utoipa::path(
@@ -95,26 +46,16 @@ pub async fn get(
     State(state): State<Arc<crate::AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, Error> {
-    send_wol(state, &id, None).await
+    send_wol(state, &id, None)
 }
 
-async fn send_wol(
+fn send_wol(
     state: Arc<crate::AppState>,
     id: &str,
-    payload: Option<Json<Payload>>,
+    payload: Option<Json<SPayload>>,
 ) -> Result<Json<Value>, Error> {
-    info!("Start request for {id}");
-    let device = sqlx::query_as!(
-        Device,
-        r#"
-        SELECT id, mac, broadcast_addr, ip, times
-        FROM devices
-        WHERE id = $1;
-        "#,
-        id
-    )
-    .fetch_one(&state.db)
-    .await?;
+    info!("start request for {id}");
+    let device = Device::read(id)?;
 
     info!("starting {}", device.id);
 
@@ -122,8 +63,8 @@ async fn send_wol(
 
     let _ = send_packet(
         bind_addr,
-        &device.broadcast_addr,
-        &create_buffer(&device.mac.to_string())?,
+        &device.broadcast_addr.to_string(),
+        &device.mac.bytes()
     )?;
     let dev_id = device.id.clone();
     let uuid = if let Some(pl) = payload {
@@ -163,6 +104,7 @@ fn setup_ping(state: Arc<crate::AppState>, device: Device) -> String {
         uuid_gen.clone(),
         PingValue {
             ip: device.ip,
+            eta: get_eta(device.clone().times),
             online: false,
         },
     );
@@ -174,7 +116,6 @@ fn setup_ping(state: Arc<crate::AppState>, device: Device) -> String {
             device,
             uuid_gen,
             &state.ping_map,
-            &state.db,
         )
         .await;
     });
@@ -182,15 +123,18 @@ fn setup_ping(state: Arc<crate::AppState>, device: Device) -> String {
     uuid_ret
 }
 
-#[derive(Deserialize, ToSchema)]
-#[deprecated]
-pub struct PayloadOld {
-    id: String,
-    ping: Option<bool>,
+fn get_eta(times: Option<Vec<i64>>) -> i64 {
+    let times = if let Some(times) = times {
+        times
+    } else {
+        vec![0]
+    };
+
+    times.iter().sum::<i64>() / i64::try_from(times.len()).unwrap()
 }
 
 #[derive(Deserialize, ToSchema)]
-pub struct Payload {
+pub struct SPayload {
     ping: Option<bool>,
 }
 

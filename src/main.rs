@@ -1,8 +1,5 @@
 use crate::{
-    config::Config,
-    db::init_db_pool,
-    routes::{device, start, status},
-    services::ping::{BroadcastCommand, StatusMap},
+    config::Config, routes::{device, start, status}, services::ping::{BroadcastCommand, StatusMap}, storage::Device
 };
 use axum::{
     middleware::from_fn_with_state,
@@ -10,11 +7,10 @@ use axum::{
     Router,
 };
 use dashmap::DashMap;
-use sqlx::PgPool;
 use std::{env, sync::Arc};
 use time::UtcOffset;
 use tokio::sync::broadcast::{channel, Sender};
-use tracing::{info, level_filters::LevelFilter};
+use tracing::{info, level_filters::LevelFilter, trace};
 use tracing_subscriber::{
     fmt::{self, time::OffsetTime},
     prelude::*,
@@ -26,10 +22,10 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-mod config;
-mod db;
-mod error;
 mod auth;
+mod config;
+mod storage;
+mod error;
 mod routes;
 mod services;
 mod wol;
@@ -39,20 +35,16 @@ mod wol;
     paths(
         start::post,
         start::get,
-        start::start_payload,
         device::get,
-        device::get_payload,
         device::post,
         device::put,
     ),
     components(
         schemas(
-            start::PayloadOld,
-            start::Payload,
+            start::SPayload,
             start::Response,
-            device::DevicePayload,
-            device::GetDevicePayload,
-            db::DeviceSchema,
+            device::DPayload,
+            storage::DeviceSchema,
         )
     ),
     modifiers(&SecurityAddon),
@@ -76,7 +68,6 @@ impl Modify for SecurityAddon {
 }
 
 #[tokio::main]
-#[allow(deprecated)]
 async fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
 
@@ -98,35 +89,28 @@ async fn main() -> color_eyre::eyre::Result<()> {
                 .from_env_lossy(),
         )
         .init();
+    trace!("logging initialized");
+
+    Device::setup()?;
 
     let version = env!("CARGO_PKG_VERSION");
-
-    info!("start webol v{}", version);
-
-    let db = init_db_pool(&config.database_url).await;
-    sqlx::migrate!().run(&db).await.unwrap();
+    info!(?version, "start webol");
 
     let (tx, _) = channel(32);
 
     let ping_map: StatusMap = DashMap::new();
 
     let shared_state = AppState {
-        db,
         config: config.clone(),
         ping_send: tx,
         ping_map,
     };
 
     let app = Router::new()
-        .route("/start", post(start::start_payload))
         .route("/start/:id", post(start::post).get(start::get))
-        .route(
-            "/device",
-            post(device::post).get(device::get_payload).put(device::put),
-        )
+        .route("/device", post(device::post).put(device::put))
         .route("/device/:id", get(device::get))
         .route("/status", get(status::status))
-        // TODO: Don't load on `None` Auth
         .route_layer(from_fn_with_state(shared_state.clone(), auth::auth))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(Arc::new(shared_state));
@@ -141,7 +125,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
 #[derive(Clone)]
 pub struct AppState {
-    db: PgPool,
     config: Config,
     ping_send: Sender<BroadcastCommand>,
     ping_map: StatusMap,

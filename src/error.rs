@@ -7,14 +7,14 @@ use mac_address::MacParseError;
 use serde_json::json;
 use utoipa::ToSchema;
 use std::io;
-use tracing::error;
+use tracing::{error, warn};
 
 #[derive(Debug, thiserror::Error, ToSchema)]
 pub enum Error {
-    #[error("db: {source}")]
-    Db {
+    #[error("json: {source}")]
+    Json {
         #[from]
-        source: sqlx::Error,
+        source: serde_json::Error,
     },
 
     #[error("buffer parse: {source}")]
@@ -50,15 +50,20 @@ pub enum Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        error!("{}", self.to_string());
+        // error!("{}", self.to_string());
         let (status, error_message) = match self {
-            Self::Db { source } => {
+            Self::Json { source } => {
                 error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
             }
             Self::Io { source } => {
-                error!("{source}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
+                if source.kind() == io::ErrorKind::NotFound {
+                    warn!("unknown device requested");
+                    (StatusCode::NOT_FOUND, "Requested device not found")
+                } else {
+                    error!("{source}");
+                    (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
+                }
             }
             Self::ParseHeader { source } => {
                 error!("{source}");

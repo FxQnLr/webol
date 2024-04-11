@@ -3,7 +3,6 @@ use crate::AppState;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{State, WebSocketUpgrade};
 use axum::response::Response;
-use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::{debug, trace};
 
@@ -18,13 +17,13 @@ pub async fn websocket(mut socket: WebSocket, state: Arc<AppState>) {
 
     trace!("Search for uuid: {}", uuid);
 
-    let eta = get_eta(&state.db).await;
-    let _ = socket
-        .send(Message::Text(format!("eta_{eta}_{uuid}")))
-        .await;
 
     let device_exists = state.ping_map.contains_key(&uuid);
     if device_exists {
+        let eta = state.ping_map.get(&uuid).unwrap().eta;
+        let _ = socket
+            .send(Message::Text(format!("eta_{eta}_{uuid}")))
+            .await;
         let _ = socket
             .send(receive_ping_broadcast(state.clone(), uuid).await)
             .await;
@@ -61,19 +60,4 @@ async fn receive_ping_broadcast(state: Arc<AppState>, uuid: String) -> Message {
             return Message::Text(message.to_string());
         }
     }
-}
-
-async fn get_eta(db: &PgPool) -> i64 {
-    let query = sqlx::query!(r#"SELECT times FROM devices;"#)
-        .fetch_one(db)
-        .await
-        .unwrap();
-
-    let times = if let Some(times) = query.times {
-        times
-    } else {
-        vec![0]
-    };
-
-    times.iter().sum::<i64>() / i64::try_from(times.len()).unwrap()
 }

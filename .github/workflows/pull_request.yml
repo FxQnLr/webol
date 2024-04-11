@@ -5,7 +5,6 @@ on: [ pull_request, workflow_dispatch ]
 env:
  SCCACHE_GHA_ENABLED: "true"
  RUSTC_WRAPPER: "sccache"
- SQLX_OFFLINE: "true"
  CARGO_TERM_COLOR: always
 
 jobs:

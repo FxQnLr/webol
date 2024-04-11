@@ -17,4 +17,5 @@ config.*
 .lapce
 
 logs/
+devices/
 *.log

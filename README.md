@@ -1,9 +1,28 @@
 # webol
 
-DATABASE_URL: `String`
+## Config
+Default `config.toml`:
+```toml
+serveraddr = "0.0.0.0:7229" # String
+pingtimeout = 10 # i64
+pingthreshold = 1 # i64
+timeoffset = 0 # i8
 
-WEBOL_APIKEY: `String`
+[auth]
+method = "none" # "none"|"key"
+secret = "" # String
+```
 
-WEBOL_SERVERADDR: `Option<String>` (0.0.0.0:7229)
+## Docker
 
-WEBOL_PINGTIMEOUT: `Option<i64>` (10)
+minimal `docker-compose.yaml`:
+```yaml
+services:
+  webol:
+    image: ghcr.io/fxqnlr/webol:0.4.0
+    container_name: webol
+    restart: unless-stopped
+    volumes:
+      - ./devices:/devices
+    network_mode: host
+```
