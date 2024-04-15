@@ -28,7 +28,9 @@ pub async fn spawn(
 
     let mut msg: Option<BroadcastCommand> = None;
     while msg.is_none() {
-        let ping = surge_ping::ping(device.ip.ip(), &payload).await;
+        // Safe: Only called when ip is set
+        let ip = device.ip.unwrap();
+        let ping = surge_ping::ping(ip.ip(), &payload).await;
 
         if let Err(ping) = ping {
             let ping_timeout = matches!(ping, surge_ping::SurgeError::Timeout { .. });

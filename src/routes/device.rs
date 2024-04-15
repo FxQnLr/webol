@@ -36,7 +36,7 @@ pub struct DPayload {
     id: String,
     mac: String,
     broadcast_addr: String,
-    ip: String,
+    ip: Option<String>,
 }
 
 #[utoipa::path(
@@ -48,15 +48,17 @@ pub struct DPayload {
     ),
     security((), ("api_key" = []))
 )]
-pub async fn put(
-    Json(payload): Json<DPayload>,
-) -> Result<Json<Value>, Error> {
+pub async fn put(Json(payload): Json<DPayload>) -> Result<Json<Value>, Error> {
     info!(
-        "add device {} ({}, {}, {})",
+        "add device {} ({}, {}, {:?})",
         payload.id, payload.mac, payload.broadcast_addr, payload.ip
     );
 
-    let ip = IpNetwork::from_str(&payload.ip)?;
+    let ip = if let Some(ip_s) = payload.ip {
+        Some(IpNetwork::from_str(&ip_s)?)
+    } else {
+        None
+    };
     let mac = MacAddress::from_str(&payload.mac)?;
     let device = Device {
         id: payload.id,
@@ -79,14 +81,17 @@ pub async fn put(
     ),
     security((), ("api_key" = []))
 )]
-pub async fn post(
-    Json(payload): Json<DPayload>,
-) -> Result<Json<Value>, Error> {
+pub async fn post(Json(payload): Json<DPayload>) -> Result<Json<Value>, Error> {
     info!(
-        "edit device {} ({}, {}, {})",
+        "edit device {} ({}, {}, {:?})",
         payload.id, payload.mac, payload.broadcast_addr, payload.ip
     );
-    let ip = IpNetwork::from_str(&payload.ip)?;
+
+    let ip = if let Some(ip_s) = payload.ip {
+        Some(IpNetwork::from_str(&ip_s)?)
+    } else {
+        None
+    };
     let mac = MacAddress::from_str(&payload.mac)?;
     let times = Device::read(&payload.id)?.times;
 

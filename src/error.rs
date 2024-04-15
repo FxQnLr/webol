@@ -46,11 +46,13 @@ pub enum Error {
         #[from]
         source: io::Error,
     },
+
+    #[error("No ip set for device but ping requested")]
+    NoIpOnPing,
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        // error!("{}", self.to_string());
         let (status, error_message) = match self {
             Self::Json { source } => {
                 error!("{source}");
@@ -80,6 +82,10 @@ impl IntoResponse for Error {
             Self::IpParse { source } => {
                 error!("{source}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Server Error")
+            },
+            Self::NoIpOnPing => {
+                error!("Ping requested but no ip given");
+                (StatusCode::BAD_REQUEST, "No Ip saved for requested device, but device started")
             }
         };
         let body = Json(json!({
