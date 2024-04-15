@@ -1,5 +1,4 @@
 # webol
-
 ## Config
 Default `config.toml`:
 ```toml
@@ -12,9 +11,7 @@ timeoffset = 0 # i8
 method = "none" # "none"|"key"
 secret = "" # String
 ```
-
 ## Docker
-
 minimal `docker-compose.yaml`:
 ```yaml
 services:
@@ -26,4 +23,39 @@ services:
       - ./devices:/devices
       - ./logs:/logs
     network_mode: host
+```
+## Register Device
+A device is registered with a PUT request to the server with a JSON representation of the device as payload.
+| field        | description                                                            | example           |
+|--------------|------------------------------------------------------------------------|-------------------|
+| server-ip    | ip of the webol server, including its port                             | webol.local:7229  |
+| secret       | secret set in the server settings                                      | password          |
+| device-id    | any string, "name" of the device                                       | foo               |
+| mac-address  | mac address of the device                                              | 12:34:56:AB:CD:EF |
+| broadcast-ip | broadcast ip of the network, including the port Wake-on-Lan listens on | 10.0.1.255:7      |
+| device-ip    | (**optional**) ip of the device, used for ping feature                 | 10.0.1.47         |
+
+Examples using curl with and without authentification enabled on the server.
+### With Authentification
+```sh
+curl -X PUT http://<server-ip>/device \
+  -H 'Authorization: <secret>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+	"id": "<device-id>",
+	"mac": "<mac-address>",
+	"broadcast_addr": "<broadcast-ip>",
+	"ip": "<device-ip>"
+  }'
+```
+### Without Authentification
+```sh
+curl -X PUT http://<server-ip>/device \
+  -H 'Content-Type: application/json' \
+  -d '{
+	"id": "<device-id>",
+	"mac": "<mac-address>",
+	"broadcast_addr": "<broadcast-ip>",
+	"ip": "<device-ip>"
+  }'
 ```
