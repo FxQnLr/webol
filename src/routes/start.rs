@@ -69,6 +69,9 @@ fn send_wol(
     let dev_id = device.id.clone();
     let uuid = if let Some(pl) = payload {
         if pl.ping.is_some_and(|ping| ping) {
+            if device.ip.is_none() {
+                return Err(Error::NoIpOnPing);
+            }
             Some(setup_ping(state, device))
         } else {
             None
@@ -86,8 +89,10 @@ fn send_wol(
 
 fn setup_ping(state: Arc<crate::AppState>, device: Device) -> String {
     let mut uuid: Option<String> = None;
+    // Safe: Only called when ip is set
+    let ip = device.ip.unwrap();
     for (key, value) in state.ping_map.clone() {
-        if value.ip == device.ip {
+        if value.ip == ip {
             debug!("service already exists");
             uuid = Some(key);
             break;
@@ -103,7 +108,7 @@ fn setup_ping(state: Arc<crate::AppState>, device: Device) -> String {
     state.ping_map.insert(
         uuid_gen.clone(),
         PingValue {
-            ip: device.ip,
+            ip,
             eta: get_eta(device.clone().times),
             online: false,
         },

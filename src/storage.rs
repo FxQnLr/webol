@@ -18,7 +18,7 @@ pub struct Device {
     pub id: String,
     pub mac: MacAddress,
     pub broadcast_addr: String,
-    pub ip: IpNetwork,
+    pub ip: Option<IpNetwork>,
     pub times: Option<Vec<i64>>,
 }
 
