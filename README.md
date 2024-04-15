@@ -24,6 +24,7 @@ services:
       - ./logs:/logs
     network_mode: host
 ```
+# Usage
 ## Register Device
 A device is registered with a PUT request to the server with a JSON representation of the device as payload.
 | field        | description                                                            | example           |
@@ -58,4 +59,9 @@ curl -X PUT http://<server-ip>/device \
 	"broadcast_addr": "<broadcast-ip>",
 	"ip": "<device-ip>"
   }'
+```
+## Start Device
+The easiest way to start a device is using a GET request with its id:
+```sh
+curl http://<server-ip>/start/<device-id>
 ```
