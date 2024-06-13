@@ -128,14 +128,14 @@ fn setup_ping(state: Arc<crate::AppState>, device: Device) -> String {
     uuid_ret
 }
 
-fn get_eta(times: Option<Vec<i64>>) -> i64 {
+fn get_eta(times: Option<Vec<u64>>) -> u64 {
     let times = if let Some(times) = times {
         times
     } else {
         vec![0]
     };
 
-    times.iter().sum::<i64>() / i64::try_from(times.len()).unwrap()
+    times.iter().sum::<u64>() / u64::try_from(times.len()).unwrap()
 }
 
 #[derive(Deserialize, ToSchema)]
