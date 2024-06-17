@@ -1,5 +1,8 @@
 use crate::{
-    config::Config, routes::{device, start, status}, services::ping::{BroadcastCommand, StatusMap}, storage::Device
+    config::Config,
+    routes::{device, start, status},
+    services::ping::{BroadcastCommand, StatusMap},
+    storage::Device,
 };
 use axum::{
     middleware::from_fn_with_state,
@@ -8,14 +11,9 @@ use axum::{
 };
 use dashmap::DashMap;
 use std::{env, sync::Arc};
-use time::UtcOffset;
 use tokio::sync::broadcast::{channel, Sender};
 use tracing::{info, level_filters::LevelFilter, trace};
-use tracing_subscriber::{
-    fmt::{self, time::OffsetTime},
-    prelude::*,
-    EnvFilter,
-};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
@@ -24,10 +22,10 @@ use utoipa_swagger_ui::SwaggerUi;
 
 mod auth;
 mod config;
-mod storage;
 mod error;
 mod routes;
 mod services;
+mod storage;
 mod wol;
 
 #[derive(OpenApi)]
@@ -73,15 +71,20 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
     let config = Config::load()?;
 
-    let time_format =
-        time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
-    let time = OffsetTime::new(UtcOffset::from_hms(config.timeoffset, 0, 0)?, time_format);
+    let writer_time =
+        tracing_subscriber::fmt::time::ChronoLocal::new("%Y-%m-%d %H:%M:%S%.6f%:z".to_string());
+    let time = tracing_subscriber::fmt::time::ChronoLocal::new("%Y-%m-%d %H:%M:%S%:z".to_string());
 
     let file_appender = tracing_appender::rolling::daily("logs", "webol.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::registry()
-        .with(fmt::layer().with_writer(non_blocking).with_ansi(false))
+        .with(
+            fmt::layer()
+                .with_timer(writer_time)
+                .with_writer(non_blocking)
+                .with_ansi(false),
+        )
         .with(fmt::layer().with_timer(time))
         .with(
             EnvFilter::builder()
