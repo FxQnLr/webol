@@ -16,7 +16,7 @@ use uuid::Uuid;
     path = "/start/{id}",
     request_body = Option<SPayload>,
     responses(
-        (status = 200, description = "start the device with the given id", body = [Response])
+        (status = 200, description = "start device with the given id", body = [Response])
     ),
     params(
         ("id" = String, Path, description = "device id")
