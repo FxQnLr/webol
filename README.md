@@ -4,7 +4,7 @@ Default `config.toml`:
 ```toml
 serveraddr = "0.0.0.0:7229" # String
 pingtimeout = 10 # i64
-pingthreshold = 1 # i64
+pingthreshold = 1 # u64
 timeoffset = 0 # i8
 
 [auth]

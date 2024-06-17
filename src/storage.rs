@@ -19,7 +19,7 @@ pub struct Device {
     pub mac: MacAddress,
     pub broadcast_addr: String,
     pub ip: Option<IpNetwork>,
-    pub times: Option<Vec<i64>>,
+    pub times: Option<Vec<u64>>,
 }
 
 impl Device {
@@ -59,6 +59,8 @@ impl Device {
     }
 }
 
+// Dead Code allowed because of use in OpenApi Macro (not really dead code)
+#[allow(dead_code)]
 #[derive(ToSchema)]
 #[schema(as = Device)]
 pub struct DeviceSchema {

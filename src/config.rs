@@ -7,7 +7,7 @@ use crate::auth;
 pub struct Config {
     pub serveraddr: String,
     pub pingtimeout: i64,
-    pub pingthreshold: i64,
+    pub pingthreshold: u64,
     pub timeoffset: i8,
     pub auth: Auth,
 }

@@ -2,8 +2,8 @@ use crate::config::Config;
 use crate::storage::Device;
 use dashmap::DashMap;
 use ipnetwork::IpNetwork;
-use std::fmt::Display;
-use time::{Duration, Instant};
+use std::{fmt::Display, time::Instant};
+use time::Duration;
 use tokio::sync::broadcast::Sender;
 use tracing::{debug, error, trace};
 
@@ -12,7 +12,7 @@ pub type StatusMap = DashMap<String, Value>;
 #[derive(Debug, Clone)]
 pub struct Value {
     pub ip: IpNetwork,
-    pub eta: i64,
+    pub eta: u64,
     pub online: bool,
 }
 
@@ -56,12 +56,12 @@ pub async fn spawn(
 
     let _ = tx.send(msg.clone());
     if msg.command == BroadcastCommands::Success {
-        if timer.elapsed().whole_seconds() > config.pingthreshold {
+        if timer.elapsed().as_secs() > config.pingthreshold {
             let newtimes = if let Some(mut oldtimes) = device.times {
-                oldtimes.push(timer.elapsed().whole_seconds());
+                oldtimes.push(timer.elapsed().as_secs());
                 oldtimes
             } else {
-                vec![timer.elapsed().whole_seconds()]
+                vec![timer.elapsed().as_secs()]
             };
 
             let updatedev = Device {
