@@ -5,7 +5,6 @@ Default `config.toml`:
 serveraddr = "0.0.0.0:7229" # String
 pingtimeout = 10 # i64
 pingthreshold = 1 # u64
-timeoffset = 0 # i8
 
 [auth]
 method = "none" # "none"|"key"
@@ -16,7 +15,7 @@ minimal `docker-compose.yaml`:
 ```yaml
 services:
   webol:
-    image: ghcr.io/fxqnlr/webol:0.4.1
+    image: ghcr.io/fxqnlr/webol:latest
     container_name: webol
     restart: unless-stopped
     volumes:
