@@ -15,7 +15,7 @@ minimal `docker-compose.yaml`:
 ```yaml
 services:
   webol:
-    image: ghcr.io/fxqnlr/webol:0.4.1
+    image: ghcr.io/fxqnlr/webol:latest
     container_name: webol
     restart: unless-stopped
     volumes:
