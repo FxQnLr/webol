@@ -17,11 +17,11 @@ config = "0.14"
 surge-ping = "0.8"
 axum-macros = "0.4"
 uuid = { version = "1.8", features = ["v4", "fast-rng"] }
-dashmap = "5.5"
+dashmap = "6.0"
 color-eyre = "0.6"
 thiserror = "1.0"
 ipnetwork = "0.20"
 mac_address = { version = "1.1", features = ["serde"] }
-tracing-appender = "0.2.3"
+tracing-appender = "0.2"
 utoipa = { version = "4.2", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7.1", features = ["axum"] }
