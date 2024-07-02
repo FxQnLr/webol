@@ -44,7 +44,7 @@ pub struct DPayload {
     path = "/device",
     request_body = DPayload,
     responses(
-        (status = 200, description = "add device to storage", body = [DeviceSchema])
+        (status = 200, description = "add device to storage", body = [Device])
     ),
     security((), ("api_key" = []))
 )]
@@ -77,7 +77,7 @@ pub async fn put(Json(payload): Json<DPayload>) -> Result<Json<Value>, Error> {
     path = "/device",
     request_body = DPayload,
     responses(
-        (status = 200, description = "update device in storage", body = [DeviceSchema])
+        (status = 200, description = "update device in storage", body = [Device])
     ),
     security((), ("api_key" = []))
 )]
