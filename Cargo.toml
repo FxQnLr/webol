@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.7", features = ["ws"] }
-tokio = { version = "1.38", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.39", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "local-time", "chrono"] }
 time = { version = "0.3", features = ["macros"] }
@@ -16,7 +16,7 @@ serde_json = "1.0"
 config = "0.14"
 surge-ping = "0.8"
 axum-macros = "0.4"
-uuid = { version = "1.8", features = ["v4", "fast-rng"] }
+uuid = { version = "1.10", features = ["v4", "fast-rng"] }
 dashmap = "6.0"
 color-eyre = "0.6"
 thiserror = "1.0"
