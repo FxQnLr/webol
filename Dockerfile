@@ -5,7 +5,7 @@ RUN cd /tmp && \
     mkdir /dpkg && \
     for deb in *.deb; do dpkg --extract $deb /dpkg || exit 10; done
 
-FROM rust:1.77 as builder
+FROM rust:1.80 as builder
 WORKDIR /app
 COPY . .
 RUN cargo install --path .
