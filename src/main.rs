@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    routes::{device, start, status},
+    routes::{device, devices, start, status},
     services::ping::{BroadcastCommand, StatusMap},
     storage::Device,
 };
@@ -36,6 +36,7 @@ mod wol;
         device::get,
         device::post,
         device::put,
+        devices::get,
     ),
     components(
         schemas(
@@ -113,6 +114,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
         .route("/start/:id", post(start::post).get(start::get))
         .route("/device", post(device::post).put(device::put))
         .route("/device/:id", get(device::get))
+        .route("/devices", get(devices::get))
         .route("/status", get(status::status))
         .route_layer(from_fn_with_state(shared_state.clone(), auth::auth))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))

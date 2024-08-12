@@ -1,5 +1,6 @@
 use std::{
-    fs::{create_dir_all, File},
+    ffi::OsStr,
+    fs::{create_dir_all, File, read_dir},
     io::{Read, Write},
     path::Path,
 };
@@ -26,14 +27,14 @@ impl Device {
     const STORAGE_PATH: &'static str = "devices";
 
     pub fn setup() -> Result<String, Error> {
-        trace!("check for storage at {}", Self::STORAGE_PATH);
+        trace!("check for storage STORAGE_PATH=\"{}\"", Self::STORAGE_PATH);
         let sp = Path::new(Self::STORAGE_PATH);
         if !sp.exists() {
             warn!("device storage path doesn't exist, creating it");
             create_dir_all(Self::STORAGE_PATH)?;
         };
 
-        debug!("device storage at '{}'", Self::STORAGE_PATH);
+        debug!("device storage STORAGE_PATH=\"{}\"", Self::STORAGE_PATH);
 
         Ok(Self::STORAGE_PATH.to_string())
     }
@@ -47,6 +48,24 @@ impl Device {
 
         let dev = serde_json::from_str(&buf)?;
         Ok(dev)
+    }
+
+    pub fn read_all() -> Result<Vec<Self>, Error> {
+        trace!("attempt to read all files");
+        let st_path = read_dir(Self::STORAGE_PATH)?;
+
+        let mut devices = vec![];
+        for file_path in st_path {
+            let file_path = file_path?;
+            if file_path.path().extension() != Some(OsStr::new("json")) { continue; };
+            let mut file = File::open(file_path.path())?;
+            let mut buf = String::new();
+            file.read_to_string(&mut buf)?;
+            trace!(?file, ?buf, "read successfully from file");
+            devices.push(serde_json::from_str(&buf)?);
+        }
+
+        Ok(devices)
     }
 
     pub fn write(&self) -> Result<(), Error> {
